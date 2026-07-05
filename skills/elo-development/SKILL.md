@@ -1,51 +1,40 @@
 ---
 name: elo-development
-description: Conhecimento obrigatório para desenvolver, revisar, testar ou documentar o projeto Elo com Bash, symlinks e dados de Minecraft. Use em qualquer tarefa que altere elo.sh, lib/*.sh, tests/*.sh, arquivos .conf, fluxo de backup/reset, estrutura do repositório ou especificações técnicas do Elo.
+description: Required knowledge for developing, reviewing, testing, or documenting Elo with Bash, symlinks, and Minecraft data. Use for changes to elo.sh, lib/*.sh, tests/*.sh, .conf files, backup/reset flows, repository structure, or Elo technical specifications.
 ---
 
 # Elo Development
 
-Trabalhar no Elo como uma CLI Bash orientada à preservação dos dados do
-usuário. Priorizar segurança de filesystem, modularidade e compatibilidade.
+Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 
-## Preparação obrigatória
+## Required preparation
 
-Antes de alterar o projeto:
+1. Read `specs/README.md`.
+2. Read every reference in this skill:
+   - [Bash and shell](references/bash.md)
+   - [Minecraft domain](references/minecraft.md)
+   - [Filesystem safety](references/filesystem-safety.md)
+   - [Testing](references/testing.md)
+3. Read the area-specific specs.
+4. Inspect existing code before introducing abstractions.
 
-1. Ler `specs/README.md`.
-2. Ler todas as referências desta skill:
-   - [Bash e shell](references/bash.md);
-   - [Domínio Minecraft](references/minecraft.md);
-   - [Segurança de filesystem](references/filesystem-safety.md);
-   - [Testes](references/testing.md).
-3. Ler as specs específicas apontadas pelo índice para a área modificada.
-4. Inspecionar o código existente antes de propor outra abstração.
+## Workflow
 
-## Fluxo de trabalho
+1. Identify the module that owns the responsibility.
+2. Confirm backup, state, and symlink-ownership invariants.
+3. Make the smallest architecture-consistent change.
+4. Add or update isolated tests.
+5. Run `bash -n install.sh elo.sh lib/*.sh tests/*.sh`.
+6. Run both integration test scripts.
+7. Update affected specs when contracts change.
 
-1. Identificar o módulo proprietário da responsabilidade.
-2. Confirmar invariantes de backup, estado e propriedade dos symlinks.
-3. Fazer a menor alteração coerente com a arquitetura.
-4. Adicionar ou atualizar testes isolados.
-5. Executar `bash -n elo.sh lib/*.sh tests/*.sh`.
-6. Executar `./tests/test_elo.sh`.
-7. Executar `./tests/test_install.sh` quando instalação ou layout mudar.
-8. Atualizar a spec afetada quando o contrato mudar.
+## Non-negotiable rules
 
-## Regras inegociáveis
-
-- Nunca remover, substituir ou mover dados não reconhecidos sem confirmação.
-- Nunca confiar apenas em `-L`; validar o destino contra `state.conf`.
-- Nunca sobrescrever um backup original.
-- Nunca executar arquivos `.conf` com `source` ou `eval`.
-- Nunca usar nomes fornecidos pelo usuário em paths sem validação.
-- Não adicionar dependência de runtime sem mudar explicitamente a spec.
-- Não misturar parsing da CLI com lógica de filesystem.
-- Não acessar `~/.elo` ou `.minecraft` reais durante testes.
-- Não declarar uma mudança pronta sem validar sintaxe e integração.
-
-## Fonte de verdade
-
-As specs definem como o software deve ser construído. Em conflito entre uma
-referência desta skill, comentários e specs, seguir `specs/` e corrigir a
-documentação desatualizada no mesmo trabalho.
+- Never remove unknown data without confirmation.
+- Never trust `-L` alone; validate link targets against state.
+- Never overwrite original backups.
+- Never execute `.conf` files with `source` or `eval`.
+- Validate user-controlled path components.
+- Keep CLI parsing separate from filesystem logic.
+- Never access real user data in tests.
+- Keep all tracked project text in English.

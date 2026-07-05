@@ -1,68 +1,16 @@
-# Persistência e modelo de dados
-
-## Estrutura
+# Storage
 
 ```text
 ~/.elo/
 ├── config.conf
 ├── state.conf
-├── instances/
-│   └── <nome-instancia>/
-│       ├── instance.conf
-│       ├── mods/
-│       ├── resourcepacks/
-│       ├── shaderpacks/
-│       └── config/
-└── backups/
-    └── original/
-        └── <pasta>.bak/
+├── instances/<instance-name>/{instance.conf,mods,resourcepacks,shaderpacks,config}
+└── backups/original/<folder>.bak
 ```
 
-A variável `ELO_HOME` pode substituir `~/.elo`.
+`ELO_HOME` overrides the root. `.conf` files contain one `KEY=VALUE` pair per
+line and are parsed as data. Values cannot contain newlines.
 
-## Formato
-
-Os arquivos `.conf` armazenam um par `CHAVE=VALOR` por linha. Eles são
-interpretados como dados por `elo_kv_get`, `elo_kv_set` e `elo_kv_unset`.
-Nunca são executados com `source`.
-
-Valores não podem conter quebras de linha.
-
-## Configuração global
-
-`config.conf`:
-
-```text
-MINECRAFT_PATH=/home/usuario/.minecraft
-ACTIVE_INSTANCE=skyblock
-MANAGED_FOLDERS=mods resourcepacks shaderpacks config
-```
-
-## Metadados da instância
-
-`instances/<nome-instancia>/instance.conf`:
-
-```text
-INSTANCE_NAME=skyblock
-MINECRAFT_VERSION=1.20.1
-LOADER=forge
-CREATED_AT=2026-07-05T12:00:00Z
-NOTES=
-```
-
-## Estado operacional
-
-`state.conf` pode conter dois campos por pasta:
-
-```text
-LINKED_mods=skyblock
-ORIGINAL_mods=backed_up
-```
-
-`LINKED_<pasta>` identifica a instância esperada no symlink.
-
-`ORIGINAL_<pasta>` aceita:
-
-- `backed_up`: original preservado em `backups/original/<pasta>.bak`;
-- `absent`: caminho inexistente antes do gerenciamento;
-- `removed`: original excluído com autorização no modo `replace`.
+`config.conf` stores `MINECRAFT_PATH`, `ACTIVE_INSTANCE`, and
+`MANAGED_FOLDERS`. `state.conf` stores `LINKED_<folder>` and
+`ORIGINAL_<folder>`, whose values are `backed_up`, `absent`, or `removed`.

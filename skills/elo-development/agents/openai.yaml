@@ -1,0 +1,4 @@
+interface:
+  display_name: "Elo Development"
+  short_description: "Regras essenciais para desenvolver o Elo"
+  default_prompt: "Use $elo-development para implementar uma mudança segura e consistente no Elo."

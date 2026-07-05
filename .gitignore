@@ -1,0 +1,42 @@
+# AI coding assistants and LLM tooling
+
+# Shared and local instruction files
+AGENTS.md
+AGENTS.local.md
+AGENTS.override.md
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+QWEN.md
+
+# Tool-specific workspace data and configuration
+.agents/
+.amazonq/
+.claude/
+.cline/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.junie/
+.kiro/
+.qwen/
+.roo/
+.windsurf/
+
+# Legacy and standalone tool files
+.aider*
+.clinerules
+.clinerules/
+.cursorrules
+.mcp.json
+.rooignore
+.roomodes
+.windsurfrules
+
+# GitHub Copilot customizations (keep the rest of .github trackable)
+/.github/agents/
+/.github/copilot-instructions.md
+/.github/instructions/
+/.github/prompts/
+/.github/skills/

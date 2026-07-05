@@ -1,4 +1,4 @@
-# Elo
+![Elo](banner.png)
 
 Elo is a modular Bash CLI for managing Minecraft instances independently of
 the launcher. It stores instances in `~/.elo` and exposes the active instance

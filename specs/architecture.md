@@ -5,6 +5,7 @@
 ```text
 elo.sh
 ├── lib/utils.sh       validação, mensagens e confirmação
+├── lib/help.sh        ajuda geral e ajuda específica por comando
 ├── lib/config.sh      configuração e persistência do estado
 ├── lib/instance.sh    ciclo de vida das instâncias
 └── lib/link.sh        symlinks, backup, ativação e reset
@@ -26,6 +27,13 @@ elo.sh
 - solicita confirmações;
 - valida nomes e argumentos;
 - resolve caminhos de diretórios existentes.
+
+### `lib/help.sh`
+
+- documenta a notação de argumentos;
+- mantém ajuda geral e ajuda específica por comando;
+- descreve obrigatoriedade, valores padrão, efeitos e exemplos;
+- não executa lógica de negócio.
 
 ### `lib/config.sh`
 

@@ -16,7 +16,7 @@ que podem ser symlinks para a instância ativa.
 ## Instâncias
 
 Cada instância vive fora do `.minecraft`, em
-`$ELO_HOME/instances/<nome>/`. Seus arquivos pertencem à instância e não ao
+`$ELO_HOME/instances/<nome-instancia>/`. Seus arquivos pertencem à instância e não ao
 backup original.
 
 Versão e loader são apenas metadados no MVP. O Elo ainda não instala Minecraft,

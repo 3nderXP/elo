@@ -7,6 +7,7 @@ elo/
 ├── elo.sh
 ├── lib/
 │   ├── utils.sh
+│   ├── help.sh
 │   ├── config.sh
 │   ├── instance.sh
 │   └── link.sh

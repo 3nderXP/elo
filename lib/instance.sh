@@ -21,7 +21,7 @@ elo_cmd_new() {
 
   elo_require_initialized || return
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Uso: elo new <nome> [--version <versão>] [--loader <loader>]"
+    elo_die "Uso: elo new <nome-instancia> [--version <versão>] [--loader <loader>]"
     return
   fi
   elo_validate_instance_name "$name" || return
@@ -96,7 +96,7 @@ elo_cmd_remove() {
 
   elo_require_initialized || return
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Uso: elo remove <nome> [--reset] [--yes]"
+    elo_die "Uso: elo remove <nome-instancia> [--reset] [--yes]"
     return
   fi
   elo_require_instance "$name" || return

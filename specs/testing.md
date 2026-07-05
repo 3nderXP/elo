@@ -27,6 +27,8 @@ Cada execução:
 - proteção de symlinks externos;
 - remoção de instância ativa;
 - caminhos contendo espaços.
+- clareza da ajuda geral e específica;
+- exigência de confirmação para alterações de estado.
 
 ## Execução
 

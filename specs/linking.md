@@ -7,7 +7,7 @@ Um symlink gerenciado deve atender simultaneamente a estas condições:
 1. possuir `LINKED_<pasta>` no `state.conf`;
 2. existir em `<minecraft-path>/<pasta>`;
 3. apontar exatamente para
-   `<elo-home>/instances/<instância>/<pasta>`.
+   `<elo-home>/instances/<nome-instancia>/<pasta>`.
 
 Se qualquer condição falhar, o Elo considera o estado inconsistente e não
 remove o caminho automaticamente.

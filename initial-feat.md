@@ -27,7 +27,7 @@ Não é objetivo do MVP: baixar mods automaticamente, integrar com CurseForge/Mo
 ├── config.conf                      # configuração global
 ├── state.conf                       # estado atual de symlinks gerenciados
 ├── instances/
-│   ├── <nome-da-instancia>/
+│   ├── <nome-instancia>/
 │   │   ├── instance.conf            # metadados da instância
 │   │   ├── mods/
 │   │   ├── resourcepacks/
@@ -66,7 +66,7 @@ Inicializa o Elo pela primeira vez. Pergunta (ou recebe via flag) o caminho do `
 elo init --minecraft-path "/home/usuario/.minecraft"
 ```
 
-### `elo new <nome>`
+### `elo new <nome-instancia>`
 
 Cria uma nova instância vazia.
 
@@ -74,10 +74,10 @@ Cria uma nova instância vazia.
 elo new skyblock-modpack --version 1.20.1 --loader forge
 ```
 
-- Cria `~/.elo/instances/<nome>/` com `instance.conf` preenchido
+- Cria `~/.elo/instances/<nome-instancia>/` com `instance.conf` preenchido
 - Cria subpastas vazias (`mods/`, `resourcepacks/`, `shaderpacks/`, `config/`)
 
-### `elo link <nome>`
+### `elo link <nome-instancia>`
 
 Ativa uma instância, criando os symlinks no `.minecraft`.
 
@@ -97,10 +97,10 @@ Comportamento:
    - Se for uma pasta real (não symlink):
      - **Modo `backup` (padrão):** move a pasta para `~/.elo/backups/original/<pasta>.bak` e registra essa operação no `state.conf`.
      - **Modo `replace`:** remove a pasta original (pedir confirmação explícita no terminal, ex: digitar "sim" ou nome da pasta)
-   - Cria o symlink: `.minecraft/<pasta> -> ~/.elo/instances/<nome>/<pasta>`
+   - Cria o symlink: `.minecraft/<pasta> -> ~/.elo/instances/<nome-instancia>/<pasta>`
 3. Atualiza `ACTIVE_INSTANCE` no `config.conf`.
 
-### `elo switch <nome>`
+### `elo switch <nome-instancia>`
 
 Atalho para trocar de instância ativa sem passar pelo fluxo completo de confirmação de backup (já que a pasta atual do `.minecraft` já é um symlink gerenciado, não pasta real). Internamente reaproveita a lógica do `elo link`.
 
@@ -152,7 +152,7 @@ Mostra o estado atual do `.minecraft` gerenciado: qual instância está ativa, q
 elo status
 ```
 
-### `elo remove <nome>`
+### `elo remove <nome-instancia>`
 
 Remove uma instância (com confirmação). Se a instância estiver ativa no momento, pede para rodar `elo reset` antes, ou oferece fazer isso automaticamente.
 
@@ -167,7 +167,7 @@ elo remove teste-fabric
 - **Symlinks devem ser identificáveis como "gerenciados pelo Elo"** — sugestão: guardar no `config.conf` ou em um arquivo de estado (`~/.elo/state.conf`) o mapeamento de quais caminhos do `.minecraft` estão atualmente linkados e para qual instância, ao invés de confiar apenas em checar se o caminho é um symlink (evita conflito com symlinks criados por outras ferramentas).
 - **Detectar links "quebrados" ou órfãos**: se o usuário mexer manualmente nas pastas, o `elo status` deve conseguir detectar inconsistências (ex: symlink aponta pra instância que não existe mais) e avisar.
 - **Multiplataforma (atenção especial ao Windows)**: criar symlinks no Windows exige privilégio de administrador ou "modo desenvolvedor" ativado. A CLI deve detectar erro de permissão e orientar o usuário claramente.
-- **Idempotência**: rodar `elo link <nome>` para a instância que já está ativa não deve duplicar backups nem quebrar nada — deve apenas confirmar que já está tudo linkado.
+- **Idempotência**: rodar `elo link <nome-instancia>` para a instância que já está ativa não deve duplicar backups nem quebrar nada — deve apenas confirmar que já está tudo linkado.
 
 ## Stack do MVP: scripts `.sh` em Bash puro
 
@@ -193,7 +193,7 @@ ACTIVE_INSTANCE="skyblock-modpack"
 MANAGED_FOLDERS="mods resourcepacks shaderpacks config"
 ```
 
-`~/.elo/instances/<nome>/instance.conf` (exemplo):
+`~/.elo/instances/<nome-instancia>/instance.conf` (exemplo):
 
 ```bash
 INSTANCE_NAME="skyblock-modpack"

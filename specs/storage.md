@@ -7,7 +7,7 @@
 ├── config.conf
 ├── state.conf
 ├── instances/
-│   └── <nome>/
+│   └── <nome-instancia>/
 │       ├── instance.conf
 │       ├── mods/
 │       ├── resourcepacks/
@@ -40,7 +40,7 @@ MANAGED_FOLDERS=mods resourcepacks shaderpacks config
 
 ## Metadados da instância
 
-`instances/<nome>/instance.conf`:
+`instances/<nome-instancia>/instance.conf`:
 
 ```text
 INSTANCE_NAME=skyblock

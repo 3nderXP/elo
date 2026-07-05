@@ -68,7 +68,7 @@ test_instance_lifecycle() {
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
 
-  "$ELO" switch beta >/dev/null
+  "$ELO" switch beta --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/beta/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
 
@@ -76,7 +76,7 @@ test_instance_lifecycle() {
   assert_contains "$output" "Instância ativa: beta"
   assert_contains "$output" "backed_up"
 
-  "$ELO" reset >/dev/null
+  "$ELO" reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
   [[ ! -L "$MINECRAFT_PATH/mods" ]] || fail "mods não deveria continuar como symlink"
   assert_absent "$MINECRAFT_PATH/resourcepacks"
@@ -94,7 +94,7 @@ test_replace_mode() {
   assert_link_target "$MINECRAFT_PATH/config" "$ELO_HOME/instances/replace-test/config"
   assert_absent "$ELO_HOME/backups/original/config.bak"
 
-  "$ELO" reset >/dev/null
+  "$ELO" reset --yes >/dev/null
   assert_absent "$MINECRAFT_PATH/config"
 
   pass "modo replace não cria restauração inexistente"
@@ -137,10 +137,51 @@ test_paths_with_spaces() {
 
   "$ELO" link alpha --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
-  "$ELO" reset >/dev/null
+  "$ELO" reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
 
   pass "caminhos com espaços são preservados"
+}
+
+test_help_is_explicit() {
+  local output
+
+  output="$("$ELO" --help)"
+  assert_contains "$output" "<valor>  obrigatório"
+  assert_contains "$output" "[valor]  opcional"
+  assert_contains "$output" "elo help <comando>"
+
+  output="$("$ELO" new --help)"
+  assert_contains "$output" "Campos obrigatórios:"
+  assert_contains "$output" "Campos opcionais:"
+  assert_contains "$output" "<nome-instancia>"
+  assert_contains "$output" "Padrão: vanilla"
+
+  output="$("$ELO" help link)"
+  assert_contains "$output" "backup"
+  assert_contains "$output" "replace"
+  assert_contains "$output" "Não é reversível"
+
+  pass "ajuda diferencia campos e explica efeitos"
+}
+
+test_confirmation_is_required() {
+  setup_environment confirmation
+  "$ELO" new alpha >/dev/null
+
+  if "$ELO" link alpha >/dev/null 2>&1; then
+    fail "ativação não interativa deveria exigir --yes"
+  fi
+  assert_absent "$MINECRAFT_PATH/mods"
+
+  "$ELO" link alpha --yes >/dev/null
+  if "$ELO" reset >/dev/null 2>&1; then
+    fail "reset não interativo deveria exigir --yes"
+  fi
+  assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
+  "$ELO" reset --yes >/dev/null
+
+  pass "operações de estado exigem confirmação"
 }
 
 test_instance_lifecycle
@@ -148,5 +189,7 @@ test_replace_mode
 test_foreign_symlink_is_protected
 test_remove_requires_reset
 test_paths_with_spaces
+test_help_is_explicit
+test_confirmation_is_required
 
 printf '1..%d\n' "$pass_count"

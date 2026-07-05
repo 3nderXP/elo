@@ -28,6 +28,14 @@ O suporte inicial é direcionado a Linux e macOS com Bash.
 ./elo.sh reset
 ```
 
+Para consultar campos obrigatórios, opções, valores padrão e riscos:
+
+```bash
+./elo.sh --help
+./elo.sh help link
+./elo.sh reset --help
+```
+
 Por padrão, os dados ficam em `~/.elo`. A variável `ELO_HOME` permite usar
 outro diretório, especialmente em testes.
 

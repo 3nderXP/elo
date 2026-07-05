@@ -216,17 +216,34 @@ elo_cmd_link() {
   local name="${1:-}" mode="backup" active
 
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Uso: elo link <nome> [--mode backup|replace] [--yes]"
+    elo_die "Uso: elo link <nome-instancia> [--mode backup|replace] [--yes]"
     return
   fi
   shift
   elo_parse_activation_options "$@" || return
   mode="$ELO_PARSED_MODE"
 
+  elo_require_initialized || return
+  elo_require_instance "$name" || return
   active="$(elo_active_instance)"
-  if [[ -n "$active" && "$active" != "$name" ]]; then
-    elo_confirm "A instância '$active' está ativa. Trocar para '$name'?" || {
+  if [[ "$active" == "$name" ]]; then
+    elo_activate_instance "$name" "$mode"
+    return
+  fi
+
+  if [[ -n "$active" ]]; then
+    elo_confirm "Deseja trocar a instância ativa de '$active' para '$name'?" || {
       elo_warn "Troca cancelada."
+      return 1
+    }
+  elif [[ "$mode" == "replace" ]]; then
+    elo_confirm "Tem certeza de que deseja ativar '$name' no modo replace? Pastas reais poderão ser removidas permanentemente." || {
+      elo_warn "Ativação cancelada."
+      return 1
+    }
+  else
+    elo_confirm "Deseja ativar a instância '$name'? Pastas reais serão preservadas em backup." || {
+      elo_warn "Ativação cancelada."
       return 1
     }
   fi
@@ -236,19 +253,89 @@ elo_cmd_link() {
 
 elo_cmd_switch() {
   local name="${1:-}"
-  if [[ -z "$name" || "$name" == --* || $# -ne 1 ]]; then
-    elo_die "Uso: elo switch <nome>"
+  local active
+
+  if [[ -z "$name" || "$name" == --* ]]; then
+    elo_die "Uso: elo switch <nome-instancia> [--yes]"
     return
   fi
+  shift
+
+  while (($# > 0)); do
+    case "$1" in
+      --yes)
+        ELO_ASSUME_YES=1
+        shift
+        ;;
+      *)
+        elo_die "Opção inválida para switch: $1"
+        return
+        ;;
+    esac
+  done
+
+  elo_require_initialized || return
+  elo_require_instance "$name" || return
+  active="$(elo_active_instance)"
+
+  if [[ "$active" == "$name" ]]; then
+    elo_info "A instância '$name' já está ativa."
+    return
+  fi
+
+  if [[ -n "$active" ]]; then
+    elo_confirm "Deseja trocar a instância ativa de '$active' para '$name'?" || {
+      elo_warn "Troca cancelada."
+      return 1
+    }
+  else
+    elo_confirm "Nenhuma instância está ativa. Deseja ativar '$name'?" || {
+      elo_warn "Ativação cancelada."
+      return 1
+    }
+  fi
+
   elo_activate_instance "$name" backup
 }
 
 elo_cmd_reset() {
-  local minecraft_path folders folder failed=0
+  local minecraft_path folders folder active pending=0 failed=0
 
   elo_require_initialized || return
   minecraft_path="$(elo_minecraft_path)" || return
   folders="$(elo_managed_folders)"
+  active="$(elo_active_instance)"
+
+  while (($# > 0)); do
+    case "$1" in
+      --yes)
+        ELO_ASSUME_YES=1
+        shift
+        ;;
+      *)
+        elo_die "Opção inválida para reset: $1"
+        return
+        ;;
+    esac
+  done
+
+  for folder in $folders; do
+    if [[ -n "$(elo_state_get "$(elo_linked_key "$folder")" || true)" ||
+      -n "$(elo_state_get "$(elo_original_key "$folder")" || true)" ]]; then
+      pending=1
+      break
+    fi
+  done
+
+  if [[ -z "$active" && "$pending" == "0" ]]; then
+    elo_info "Nada para resetar; o Elo não está gerenciando nenhuma instância."
+    return
+  fi
+
+  elo_confirm "Deseja desfazer o gerenciamento e restaurar as pastas originais?" || {
+    elo_warn "Reset cancelado."
+    return 1
+  }
 
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return

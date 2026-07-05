@@ -23,29 +23,29 @@ install_info() {
 }
 
 install_die() {
-  printf 'erro: %s\n' "$*" >&2
+  printf 'error: %s\n' "$*" >&2
   exit 1
 }
 
 install_usage() {
   cat <<'EOF'
-Instalador do Elo
+Elo installer
 
-Uso remoto:
+Remote usage:
   curl -fsSL https://raw.githubusercontent.com/3nderXP/elo/main/install.sh | bash
 
-Uso local:
-  ./install.sh --source <diretorio-do-repositorio>
+Local usage:
+  ./install.sh --source <repository-directory>
 
-Opções:
-  --source <diretorio>      Instala a partir de um checkout local
-  --install-dir <diretorio> Diretório das versões instaladas
-  --bin-dir <diretorio>     Diretório onde o comando elo será criado
-  --repo <usuario/repo>     Repositório usado no download
-  --ref <ref>               Branch, tag ou commit usado no download
-  --help                    Mostra esta ajuda
+Options:
+  --source <directory>      Install from a local checkout
+  --install-dir <directory> Directory that stores installed releases
+  --bin-dir <directory>     Directory where the elo command is created
+  --repo <owner/repo>       Repository used for downloads
+  --ref <ref>               Branch, tag, or commit used for downloads
+  --help                    Show this help
 
-Variáveis equivalentes:
+Equivalent environment variables:
   ELO_INSTALL_DIR, ELO_BIN_DIR, ELO_REPOSITORY e ELO_REF
 EOF
 }
@@ -59,7 +59,7 @@ install_cleanup() {
 install_require_value() {
   local option="$1"
   local value="${2:-}"
-  [[ -n "$value" ]] || install_die "A opção $option requer um valor."
+  [[ -n "$value" ]] || install_die "Option $option requires a value."
 }
 
 install_parse_options() {
@@ -95,7 +95,7 @@ install_parse_options() {
         exit 0
         ;;
       *)
-        install_die "Opção desconhecida: $1"
+        install_die "Unknown option: $1"
         ;;
     esac
   done
@@ -106,12 +106,12 @@ install_copy_local_files() {
   local source file
 
   [[ -d "$ELO_SOURCE_DIR" ]] ||
-    install_die "Diretório de origem não encontrado: $ELO_SOURCE_DIR"
+    install_die "Source directory not found: $ELO_SOURCE_DIR"
   source="$(cd "$ELO_SOURCE_DIR" && pwd -P)"
 
   for file in "${ELO_INSTALL_FILES[@]}"; do
     [[ -f "$source/$file" ]] ||
-      install_die "Arquivo obrigatório ausente: $source/$file"
+      install_die "Required file is missing: $source/$file"
     mkdir -p "$(dirname "$stage/$file")"
     cp "$source/$file" "$stage/$file"
   done
@@ -122,15 +122,15 @@ install_download_files() {
   local base_url file
 
   command -v curl >/dev/null 2>&1 ||
-    install_die "curl é necessário para a instalação remota."
+    install_die "curl is required for remote installation."
 
   base_url="https://raw.githubusercontent.com/$ELO_REPOSITORY/$ELO_REF"
-  install_info "Baixando $ELO_REPOSITORY@$ELO_REF..."
+  install_info "Downloading $ELO_REPOSITORY@$ELO_REF..."
 
   for file in "${ELO_INSTALL_FILES[@]}"; do
     mkdir -p "$(dirname "$stage/$file")"
     curl -fsSL "$base_url/$file" -o "$stage/$file" ||
-      install_die "Falha ao baixar: $base_url/$file"
+      install_die "Failed to download: $base_url/$file"
   done
 }
 
@@ -138,7 +138,7 @@ install_validate_stage() {
   local stage="$1"
 
   bash -n "$stage/elo.sh" "$stage"/lib/*.sh ||
-    install_die "Os scripts baixados possuem erro de sintaxe."
+    install_die "Downloaded scripts contain syntax errors."
   chmod +x "$stage/elo.sh"
 }
 
@@ -152,10 +152,10 @@ install_activate_release() {
   command_path="$ELO_BIN_DIR/elo"
 
   if [[ -e "$current" && ! -L "$current" ]]; then
-    install_die "O caminho $current existe e não é um symlink."
+    install_die "Path $current exists and is not a symlink."
   fi
   if [[ -e "$command_path" && ! -L "$command_path" ]]; then
-    install_die "O caminho $command_path existe e não será sobrescrito."
+    install_die "Path $command_path exists and will not be overwritten."
   fi
 
   mkdir -p "$release/lib" "$ELO_BIN_DIR"
@@ -166,13 +166,13 @@ install_activate_release() {
   ln -sfn "$release" "$current"
   ln -sfn "$current/elo.sh" "$command_path"
 
-  install_info "Elo instalado em $release"
-  install_info "Comando criado em $command_path"
+  install_info "Elo installed at $release"
+  install_info "Command created at $command_path"
 
   case ":$PATH:" in
     *":$ELO_BIN_DIR:"*) ;;
     *)
-      printf 'aviso: adicione %s ao PATH para usar o comando elo.\n' \
+      printf 'warning: add %s to PATH to use the elo command.\n' \
         "$ELO_BIN_DIR" >&2
       ;;
   esac

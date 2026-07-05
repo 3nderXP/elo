@@ -1,48 +1,48 @@
 # Elo
 
-Elo é uma CLI modular em Bash para gerenciar instâncias de Minecraft sem
-depender de um launcher específico. Ela mantém cada instância em `~/.elo` e
-aponta as pastas do `.minecraft` para a instância ativa por meio de symlinks.
+Elo is a modular Bash CLI for managing Minecraft instances independently of
+the launcher. It stores instances in `~/.elo` and exposes the active instance
+inside `.minecraft` through symlinks.
 
-## Estado atual
+## Current status
 
-O MVP implementa:
+The MVP supports:
 
-- inicialização do diretório de dados;
-- criação, listagem e remoção de instâncias;
-- ativação e troca de instância;
-- backup das pastas originais do `.minecraft`;
-- reset com restauração do estado original;
-- detecção de symlinks alterados ou externos.
+- initialization of Elo’s data directory;
+- instance creation, listing, and removal;
+- instance activation and switching;
+- backup and restoration of original `.minecraft` directories;
+- detection of external, broken, or divergent symlinks;
+- interactive confirmation for state-changing operations.
 
-O suporte inicial é direcionado a Linux e macOS com Bash.
+The current target platforms are Linux and macOS with Bash.
 
-## Instalação
+## Installation
 
-Instale a versão atual diretamente do GitHub:
+Install the current version from GitHub:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/3nderXP/elo/main/install.sh | bash
 ```
 
-O instalador:
+The installer:
 
-- baixa e valida todos os scripts antes de ativá-los;
-- instala o código em `~/.local/share/elo`;
-- cria o comando `elo` em `~/.local/bin`;
-- não usa `sudo` e não cria `~/.elo`.
+- downloads and validates every script before activation;
+- installs code under `~/.local/share/elo`;
+- creates the `elo` command under `~/.local/bin`;
+- does not use `sudo` or initialize `~/.elo`.
 
-Se `~/.local/bin` ainda não estiver no seu `PATH`, o instalador mostrará o
-aviso e o diretório que precisa ser adicionado.
+If `~/.local/bin` is not in `PATH`, the installer prints the directory that
+must be added.
 
-Depois da instalação:
+After installation:
 
 ```bash
 elo init --minecraft-path "$HOME/.minecraft"
 elo --help
 ```
 
-## Executar em desenvolvimento
+## Development
 
 ```bash
 ./elo.sh help
@@ -53,7 +53,7 @@ elo --help
 ./elo.sh reset
 ```
 
-Para consultar campos obrigatórios, opções, valores padrão e riscos:
+Use command-specific help for required fields, defaults, and risks:
 
 ```bash
 ./elo.sh --help
@@ -61,38 +61,38 @@ Para consultar campos obrigatórios, opções, valores padrão e riscos:
 ./elo.sh reset --help
 ```
 
-Por padrão, os dados ficam em `~/.elo`. A variável `ELO_HOME` permite usar
-outro diretório, especialmente em testes.
+Set `ELO_HOME` to isolate data during development or testing.
 
-## Estrutura
+## Project structure
 
 ```text
-install.sh             instalação local ou via GitHub
-elo.sh                 parsing e despacho dos comandos
-lib/utils.sh           mensagens, confirmação e validações
-lib/help.sh            ajuda geral e específica
-lib/config.sh          persistência de config.conf e state.conf
-lib/instance.sh        ciclo de vida das instâncias
-lib/link.sh            symlinks, backup, switch, reset e status
-tests/test_elo.sh      testes do gerenciamento
-tests/test_install.sh  teste isolado do instalador
+install.sh             local and GitHub installer
+elo.sh                 command parsing and dispatch
+lib/utils.sh           messages, confirmation, and validation
+lib/help.sh            general and command-specific help
+lib/config.sh          config.conf and state.conf persistence
+lib/instance.sh        instance lifecycle
+lib/link.sh            symlinks, backup, switch, reset, and status
+tests/test_elo.sh      instance-management integration tests
+tests/test_install.sh  isolated installer integration test
 ```
 
-`elo.sh` é intencionalmente pequeno. A lógica de filesystem que pode mover ou
-remover dados fica concentrada em `lib/link.sh`.
+`elo.sh` is intentionally small. Filesystem logic that can move or remove data
+is concentrated in `lib/link.sh`.
 
-## Testes
+## Tests
 
 ```bash
 ./tests/test_elo.sh
 ./tests/test_install.sh
 ```
 
-Os testes definem um `ELO_HOME` temporário e não acessam o `.minecraft` real.
+Tests use temporary `ELO_HOME` and `.minecraft` directories and never access
+real user data.
 
-## Documentação
+## Documentation
 
-- [Conhecimento obrigatório para LLMs](skills/elo-development/SKILL.md)
-- [Especialização Git/GitHub](skills/git-github-workflow/SKILL.md)
-- [Especificações técnicas](specs/README.md)
-- [Contexto inicial](initial-feat.md)
+- [Required knowledge for LLMs](skills/elo-development/SKILL.md)
+- [Git and GitHub specialization](skills/git-github-workflow/SKILL.md)
+- [Technical specifications](specs/README.md)
+- [Initial project context](initial-feat.md)

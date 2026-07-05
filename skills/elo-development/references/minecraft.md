@@ -1,32 +1,11 @@
-# Domínio Minecraft
+# Minecraft domain
 
-## Diretório alvo
+The MVP manages `.minecraft/mods`, `resourcepacks`, `shaderpacks`, and
+`config`. Launchers remain unaware of Elo and follow normal paths.
 
-Launchers de Minecraft leem pastas convencionais dentro de `.minecraft`.
-O MVP gerencia:
+Instances live under `$ELO_HOME/instances/<instance-name>/`. Instance data is
+not original backup data. Versions and loaders are metadata only; Elo does not
+install Minecraft, loaders, mods, or dependencies.
 
-- `mods`;
-- `resourcepacks`;
-- `shaderpacks`;
-- `config`.
-
-O launcher não precisa conhecer o Elo. Ele continua acessando os mesmos paths,
-que podem ser symlinks para a instância ativa.
-
-## Instâncias
-
-Cada instância vive fora do `.minecraft`, em
-`$ELO_HOME/instances/<nome-instancia>/`. Seus arquivos pertencem à instância e não ao
-backup original.
-
-Versão e loader são apenas metadados no MVP. O Elo ainda não instala Minecraft,
-Forge, Fabric, NeoForge, mods ou dependências.
-
-## Estado original
-
-Pastas reais encontradas no `.minecraft` antes da ativação não pertencem a
-nenhuma instância. Elas representam o ambiente original do usuário e devem ser
-restauradas pelo `reset`.
-
-Trocar de instância não cria um novo original. O backup permanece vinculado ao
-`.minecraft` configurado durante todo o ciclo de gerenciamento.
+Real folders found before activation belong to the configured `.minecraft`.
+`reset` restores them. Switching instances never creates a new original.

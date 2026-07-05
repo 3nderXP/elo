@@ -1,32 +1,15 @@
-# Testes do Elo
+# Elo testing
 
-## Isolamento obrigatório
+Create temporary `ELO_HOME` and `.minecraft` roots. Never access real user
+data. Cover original, absent, replaced, external, broken, and divergent paths;
+instance switching; reset; spaces in paths; and backup-preserving failures.
 
-- Criar raiz temporária com `mktemp -d`.
-- Definir `ELO_HOME` dentro dessa raiz.
-- Criar um `.minecraft` descartável.
-- Nunca depender de `HOME/.elo` ou `HOME/.minecraft`.
-- Limpar apenas o diretório temporário criado pelo teste.
-
-## Validações mínimas
-
-Para mudanças no ciclo de filesystem, cobrir:
-
-- original existente;
-- path originalmente ausente;
-- symlink externo;
-- symlink quebrado ou divergente;
-- troca entre duas instâncias;
-- reset após ativação;
-- paths contendo espaços;
-- erro sem perda do backup.
-
-## Execução
+Run:
 
 ```bash
-bash -n elo.sh lib/*.sh tests/*.sh
+bash -n install.sh elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
 ./tests/test_install.sh
 ```
 
-Manter os testes determinísticos, sem rede e sem dependências externas.
+Keep tests deterministic, offline, and dependency-free.

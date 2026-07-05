@@ -49,7 +49,7 @@ main() {
     help) elo_help_command "${1:-}" ;;
     --help | -h) elo_help_general ;;
     *)
-      elo_error "Comando desconhecido: $command"
+      elo_error "Unknown command: $command"
       elo_help_general >&2
       return 2
       ;;

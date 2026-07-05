@@ -1,43 +1,14 @@
-# Estratégia de testes
+# Testing
 
-## Localização
+`tests/test_elo.sh` covers instance management, backups, replace mode, external
+symlinks, active-instance removal, paths with spaces, help, and confirmations.
+`tests/test_install.sh` covers isolated installation and upgrades.
 
-Os testes de integração estão em:
-
-```text
-tests/test_elo.sh
-tests/test_install.sh
-```
-
-## Isolamento
-
-Cada execução:
-
-- cria diretórios temporários;
-- define um `ELO_HOME` próprio;
-- utiliza um `.minecraft` descartável;
-- nunca acessa os dados reais do usuário;
-- remove o ambiente temporário ao finalizar.
-
-## Cobertura atual
-
-- criação e listagem de instâncias;
-- ativação, troca e reset;
-- preservação do backup original;
-- modo `replace`;
-- proteção de symlinks externos;
-- remoção de instância ativa;
-- caminhos contendo espaços.
-- clareza da ajuda geral e específica;
-- exigência de confirmação para alterações de estado.
-- instalação local isolada e execução do comando instalado.
-
-## Execução
+Tests must use temporary `ELO_HOME` and `.minecraft` roots, remain offline, and
+clean only their own temporary data.
 
 ```bash
+bash -n install.sh elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
 ./tests/test_install.sh
 ```
-
-Os testes imprimem resultados no formato TAP simplificado e encerram com
-status diferente de zero na primeira falha.

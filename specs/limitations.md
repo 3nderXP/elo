@@ -1,14 +1,10 @@
-# Limitações atuais
+# Current limitations
 
-- não existe trava contra duas execuções simultâneas;
-- o instalador mantém versões anteriores e ainda não oferece limpeza ou
-  rollback por comando;
-- não há atualização automática;
-- somente um diretório `.minecraft` pode ser configurado;
-- mods não são baixados automaticamente;
-- versões e loaders não são instalados pelo Elo;
-- não há suporte nativo ao Windows;
-- não há journal transacional para recuperar automaticamente uma interrupção
-  entre duas alterações de filesystem;
-- a saída é orientada a humanos e ainda não possui formato JSON;
-- os testes são de integração; ainda não há suíte unitária por módulo.
+- No concurrent-process lock or transaction journal
+- No automatic update or release cleanup command
+- One configured `.minecraft` directory
+- No automatic downloads or loader installation
+- No native Windows support
+- Human-oriented output only; no JSON
+- Integration tests only; no per-module unit suite
+- English-only CLI until localization is implemented

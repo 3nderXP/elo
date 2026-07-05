@@ -21,13 +21,13 @@ fail() {
   --install-dir "$INSTALL_DIR" \
   --bin-dir "$BIN_DIR" >/dev/null
 
-[[ -L "$INSTALL_DIR/current" ]] || fail "current deveria ser um symlink"
-[[ -L "$COMMAND" ]] || fail "o comando elo deveria ser um symlink"
-[[ -x "$COMMAND" ]] || fail "o comando elo deveria ser executável"
+[[ -L "$INSTALL_DIR/current" ]] || fail "current should be a symlink"
+[[ -L "$COMMAND" ]] || fail "the elo command should be a symlink"
+[[ -x "$COMMAND" ]] || fail "the elo command should be executable"
 
 output="$("$COMMAND" --help)"
-[[ "$output" == *"Elo — gerenciador"* ]] ||
-  fail "o comando instalado não executou a ajuda"
+[[ "$output" == *"Elo — Minecraft instance manager"* ]] ||
+  fail "the installed command did not display help"
 
 ELO_HOME="$TEST_ROOT/data" "$COMMAND" help link >/dev/null
 
@@ -39,9 +39,9 @@ first_release="$(readlink "$INSTALL_DIR/current")"
 second_release="$(readlink "$INSTALL_DIR/current")"
 
 [[ "$first_release" != "$second_release" ]] ||
-  fail "uma reinstalação deveria ativar uma nova versão"
+  fail "reinstalling should activate a new release"
 "$COMMAND" --help >/dev/null ||
-  fail "o comando deveria continuar funcional após reinstalação"
+  fail "the command should remain functional after reinstalling"
 
-printf 'ok 1 - instalação local cria e atualiza um comando funcional\n'
+printf 'ok 1 - local installation creates and updates a working command\n'
 printf '1..1\n'

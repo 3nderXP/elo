@@ -1,32 +1,24 @@
-# Especificações de desenvolvimento do Elo
+# Elo development specifications
 
-Este diretório é a fonte de verdade normativa para implementação e manutenção.
-Os termos **DEVE**, **NÃO DEVE** e **PODE** indicam requisito, proibição e
-opção, respectivamente.
+This directory is the normative source of truth. **MUST**, **MUST NOT**, and
+**MAY** indicate requirements, prohibitions, and options.
 
-## Leitura obrigatória para qualquer mudança
+Read for every change:
 
-1. [Layout do repositório](repository-layout.md);
-2. [Regras de desenvolvimento](development-rules.md);
-3. [Arquitetura dos módulos](architecture.md);
-4. [Segurança e invariantes](safety.md).
+1. [Repository layout](repository-layout.md)
+2. [Development rules](development-rules.md)
+3. [Architecture](architecture.md)
+4. [Safety](safety.md)
+5. [Language and localization](localization.md)
 
-## Specs por área
+Area-specific specs:
 
-- Alteração de ambiente ou dependência:
-  [Runtime e compatibilidade](runtime.md).
-- Alteração de configuração ou estado:
-  [Persistência e modelo de dados](storage.md).
-- Alteração de `link`, `switch` ou `reset`:
-  [Symlinks e backups](linking.md).
-- Alteração de comandos ou saída:
-  [Contrato da CLI](cli-contract.md).
-- Alteração ou adição de comportamento:
-  [Estratégia de testes](testing.md).
-- Planejamento técnico:
-  [Limitações atuais](limitations.md).
-- Commit, tag ou publicação:
-  [Versionamento, tags e releases](release-management.md).
+- [Runtime](runtime.md)
+- [Storage](storage.md)
+- [Symlinks and backups](linking.md)
+- [CLI contract](cli-contract.md)
+- [Testing](testing.md)
+- [GitFlow and releases](release-management.md)
+- [Current limitations](limitations.md)
 
-Uma mudança que altera um contrato **DEVE** atualizar a spec correspondente no
-mesmo conjunto de alterações.
+Contract changes must update the corresponding spec in the same change.

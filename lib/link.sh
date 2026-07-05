@@ -30,13 +30,13 @@ elo_remove_managed_link() {
   expected="$(elo_expected_link_target "$linked" "$folder")"
 
   if [[ ! -L "$destination" ]]; then
-    elo_die "Estado inconsistente: $destination deveria ser um symlink do Elo."
+    elo_die "Inconsistent state: $destination should be an Elo symlink."
     return 1
   fi
 
   actual="$(elo_read_link "$destination")"
   if [[ "$actual" != "$expected" ]]; then
-    elo_die "Recusando remover symlink não reconhecido: $destination -> $actual"
+    elo_die "Refusing to remove unrecognized symlink: $destination -> $actual"
     return 1
   fi
 
@@ -58,23 +58,23 @@ elo_restore_original() {
   case "$original" in
     backed_up)
       if [[ ! -e "$backup" && ! -L "$backup" ]]; then
-        elo_die "Backup original ausente: $backup"
+        elo_die "Original backup is missing: $backup"
         return 1
       fi
       if [[ -e "$destination" || -L "$destination" ]]; then
-        elo_die "Não é seguro restaurar: o destino já existe em $destination"
+        elo_die "Cannot restore safely: destination already exists at $destination"
         return 1
       fi
       mv -- "$backup" "$destination"
       ;;
     absent | removed)
       if [[ -e "$destination" || -L "$destination" ]]; then
-        elo_die "Estado inconsistente: $destination deveria estar ausente."
+        elo_die "Inconsistent state: $destination should be absent."
         return 1
       fi
       ;;
     *)
-      elo_die "Estado original desconhecido para '$folder': $original"
+      elo_die "Unknown original state for '$folder': $original"
       return 1
       ;;
   esac
@@ -100,27 +100,27 @@ elo_prepare_destination() {
   original="$(elo_state_get "$(elo_original_key "$folder")" || true)"
 
   if [[ -L "$destination" ]]; then
-    elo_die "Já existe um symlink não gerenciado pelo Elo em $destination."
+    elo_die "An unmanaged symlink already exists at $destination."
     return 1
   fi
 
   if [[ -e "$destination" ]]; then
     if [[ -n "$original" ]]; then
-      elo_die "Estado inconsistente para $destination (ORIGINAL_$folder=$original)."
+      elo_die "Inconsistent state for $destination (ORIGINAL_$folder=$original)."
       return 1
     fi
 
     if [[ "$mode" == "backup" ]]; then
       if [[ -e "$backup" || -L "$backup" ]]; then
-        elo_die "Backup já existe e não será sobrescrito: $backup"
+        elo_die "Backup already exists and will not be overwritten: $backup"
         return 1
       fi
       mkdir -p -- "$ELO_BACKUP_DIR"
       mv -- "$destination" "$backup"
       elo_state_set "$(elo_original_key "$folder")" backed_up
     else
-      elo_confirm "O modo replace removerá permanentemente '$destination'. Continuar?" || {
-        elo_warn "Operação cancelada."
+      elo_confirm "Replace mode will permanently remove '$destination'. Continue?" || {
+        elo_warn "Operation cancelled."
         return 1
       }
       rm -rf -- "$destination"
@@ -158,12 +158,12 @@ elo_activate_instance() {
     if [[ -n "$linked" ]]; then
       expected="$(elo_expected_link_target "$linked" "$folder")"
       if [[ ! -L "$destination" ]]; then
-        elo_die "Estado inconsistente: $destination não é mais um symlink."
+        elo_die "Inconsistent state: $destination is no longer a symlink."
         return
       fi
       actual="$(elo_read_link "$destination")"
       if [[ "$actual" != "$expected" ]]; then
-        elo_die "Symlink alterado externamente: $destination -> $actual"
+        elo_die "Symlink was changed externally: $destination -> $actual"
         return
       fi
       if [[ "$linked" == "$name" ]]; then
@@ -178,7 +178,7 @@ elo_activate_instance() {
   done
 
   elo_config_set ACTIVE_INSTANCE "$name"
-  elo_info "Instância ativa: $name"
+  elo_info "Active instance: $name"
 }
 
 elo_parse_activation_options() {
@@ -200,14 +200,14 @@ elo_parse_activation_options() {
         shift
         ;;
       *)
-        elo_die "Opção inválida: $1"
+        elo_die "Invalid option: $1"
         return
         ;;
     esac
   done
 
   if [[ "$ELO_PARSED_MODE" != "backup" && "$ELO_PARSED_MODE" != "replace" ]]; then
-    elo_die "Modo inválido: use backup ou replace."
+    elo_die "Invalid mode: use backup or replace."
     return 1
   fi
 }
@@ -216,7 +216,7 @@ elo_cmd_link() {
   local name="${1:-}" mode="backup" active
 
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Uso: elo link <nome-instancia> [--mode backup|replace] [--yes]"
+    elo_die "Usage: elo link <instance-name> [--mode backup|replace] [--yes]"
     return
   fi
   shift
@@ -232,18 +232,18 @@ elo_cmd_link() {
   fi
 
   if [[ -n "$active" ]]; then
-    elo_confirm "Deseja trocar a instância ativa de '$active' para '$name'?" || {
-      elo_warn "Troca cancelada."
+    elo_confirm "Switch the active instance from '$active' to '$name'?" || {
+      elo_warn "Switch cancelled."
       return 1
     }
   elif [[ "$mode" == "replace" ]]; then
-    elo_confirm "Tem certeza de que deseja ativar '$name' no modo replace? Pastas reais poderão ser removidas permanentemente." || {
-      elo_warn "Ativação cancelada."
+    elo_confirm "Activate '$name' in replace mode? Real directories may be removed permanently." || {
+      elo_warn "Activation cancelled."
       return 1
     }
   else
-    elo_confirm "Deseja ativar a instância '$name'? Pastas reais serão preservadas em backup." || {
-      elo_warn "Ativação cancelada."
+    elo_confirm "Activate instance '$name'? Real directories will be backed up." || {
+      elo_warn "Activation cancelled."
       return 1
     }
   fi
@@ -256,7 +256,7 @@ elo_cmd_switch() {
   local active
 
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Uso: elo switch <nome-instancia> [--yes]"
+    elo_die "Usage: elo switch <instance-name> [--yes]"
     return
   fi
   shift
@@ -268,7 +268,7 @@ elo_cmd_switch() {
         shift
         ;;
       *)
-        elo_die "Opção inválida para switch: $1"
+        elo_die "Invalid option for switch: $1"
         return
         ;;
     esac
@@ -279,18 +279,18 @@ elo_cmd_switch() {
   active="$(elo_active_instance)"
 
   if [[ "$active" == "$name" ]]; then
-    elo_info "A instância '$name' já está ativa."
+    elo_info "Instance '$name' is already active."
     return
   fi
 
   if [[ -n "$active" ]]; then
-    elo_confirm "Deseja trocar a instância ativa de '$active' para '$name'?" || {
-      elo_warn "Troca cancelada."
+    elo_confirm "Switch the active instance from '$active' to '$name'?" || {
+      elo_warn "Switch cancelled."
       return 1
     }
   else
-    elo_confirm "Nenhuma instância está ativa. Deseja ativar '$name'?" || {
-      elo_warn "Ativação cancelada."
+    elo_confirm "No instance is active. Activate '$name'?" || {
+      elo_warn "Activation cancelled."
       return 1
     }
   fi
@@ -313,7 +313,7 @@ elo_cmd_reset() {
         shift
         ;;
       *)
-        elo_die "Opção inválida para reset: $1"
+        elo_die "Invalid option for reset: $1"
         return
         ;;
     esac
@@ -328,12 +328,12 @@ elo_cmd_reset() {
   done
 
   if [[ -z "$active" && "$pending" == "0" ]]; then
-    elo_info "Nada para resetar; o Elo não está gerenciando nenhuma instância."
+    elo_info "Nothing to reset; Elo is not managing an instance."
     return
   fi
 
-  elo_confirm "Deseja desfazer o gerenciamento e restaurar as pastas originais?" || {
-    elo_warn "Reset cancelado."
+  elo_confirm "Stop managing this instance and restore the original directories?" || {
+    elo_warn "Reset cancelled."
     return 1
   }
 
@@ -345,12 +345,12 @@ elo_cmd_reset() {
   done
 
   if ((failed != 0)); then
-    elo_die "Reset incompleto. Os dados preservados não foram descartados."
+    elo_die "Reset incomplete. Preserved data was not discarded."
     return 1
   fi
 
   elo_config_set ACTIVE_INSTANCE ""
-  elo_info "Gerenciamento desfeito; pastas originais restauradas."
+  elo_info "Management disabled; original directories restored."
 }
 
 elo_cmd_status() {
@@ -363,15 +363,15 @@ elo_cmd_status() {
   folders="$(elo_managed_folders)"
 
   printf 'Minecraft: %s\n' "$minecraft_path"
-  printf 'Instância ativa: %s\n' "${active:--}"
-  printf '%-16s %-20s %-12s %s\n' "PASTA" "LINK" "ORIGINAL" "ESTADO"
+  printf 'Active instance: %s\n' "${active:--}"
+  printf '%-16s %-20s %-12s %s\n' "FOLDER" "LINK" "ORIGINAL" "STATE"
 
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return
     linked="$(elo_state_get "$(elo_linked_key "$folder")" || true)"
     original="$(elo_state_get "$(elo_original_key "$folder")" || true)"
     destination="$minecraft_path/$folder"
-    state="não gerenciada"
+    state="unmanaged"
 
     if [[ -n "$linked" ]]; then
       expected="$(elo_expected_link_target "$linked" "$folder")"
@@ -380,24 +380,24 @@ elo_cmd_status() {
         if [[ "$actual" == "$expected" && -e "$destination" ]]; then
           state="ok"
         elif [[ "$actual" == "$expected" ]]; then
-          state="link quebrado"
+          state="broken link"
           inconsistent=1
         else
-          state="link divergente"
+          state="divergent link"
           inconsistent=1
         fi
       else
-        state="link ausente"
+        state="missing link"
         inconsistent=1
       fi
       if [[ -n "$active" && "$linked" != "$active" ]]; then
-        state="instância divergente"
+        state="instance mismatch"
         inconsistent=1
       fi
     elif [[ -L "$destination" ]]; then
-      state="symlink externo"
+      state="external symlink"
     elif [[ -e "$destination" ]]; then
-      state="pasta real"
+      state="real directory"
     fi
 
     printf '%-16s %-20s %-12s %s\n' "$folder" "${linked:--}" "${original:--}" "$state"

@@ -20,6 +20,7 @@ O Elo utiliza ferramentas normalmente presentes no sistema:
 - `date`.
 
 Não há runtime adicional, compilação ou gerenciador de pacotes obrigatório.
+O instalador remoto também requer `curl`.
 
 ## Política de compatibilidade
 

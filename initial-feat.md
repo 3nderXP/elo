@@ -174,7 +174,7 @@ elo remove teste-fabric
 Decisão: o MVP será construído inteiramente como **scripts `.sh` em Bash**. Não haverá implementação paralela em Python, Go, Rust ou outra linguagem no MVP. Motivos práticos:
 
 - Zero dependência de runtime adicional — quem for rodar o `elo` só precisa do Bash, disponível por padrão na maioria dos ambientes Linux/macOS.
-- O instalador via `curl | bash` (já planejado) fica natural: o script de instalação e o próprio programa são a mesma linguagem, sem precisar compilar binário nem empacotar interpretador.
+- O instalador via `curl | bash` usa a mesma linguagem do programa, sem precisar compilar binário nem empacotar interpretador.
 - Symlinks são uma operação nativa e simples via `ln -s`.
 
 **Limitação aceita conscientemente:** por ora, foco em **Linux/macOS**. Suporte a Windows fica fora do MVP (symlink no Windows via Bash puro — ex: Git Bash/WSL — teria comportamento inconsistente e exigiria tratamento à parte; deixar isso documentado como decisão consciente, não esquecimento).
@@ -234,7 +234,7 @@ elo/
 │   ├── instance.sh         # criar/listar/remover instâncias
 │   ├── link.sh             # lógica de link/switch/reset (symlinks + backup)
 │   └── utils.sh            # funções auxiliares (confirmação, cores no terminal, checagem de erro)
-├── install.sh              # script de instalação via curl (fase futura)
+├── install.sh              # instalador via curl
 └── README.md
 ```
 
@@ -262,25 +262,25 @@ elo/
 
 O projeto será hospedado no **GitHub** e desenvolvido localmente em `~/dev-projects/elo` (essa é a pasta do *código-fonte* do projeto, não confundir com `~/.elo`, que é o diretório de dados/estado criado em runtime na máquina de quem instala a ferramenta).
 
-Planejamento de instalação:
+Fluxo de instalação:
 
 - **Fase de desenvolvimento (agora):** rodar o entrypoint localmente a partir de `~/dev-projects/elo`, usando `./elo.sh` ou `bash ./elo.sh`.
-- **Fase de distribuição (futuro):** criar um script de instalação via `curl`, no estilo:
+- **Fase de distribuição:** instalar por meio do script `install.sh`:
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/<usuario>/elo/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/3nderXP/elo/main/install.sh | bash
   ```
 
-  Esse script deve:
+  O script:
   1. Baixar e instalar `elo.sh` e os módulos `.sh` do diretório `lib/`.
   2. Colocar o executável `elo` no `PATH` do usuário.
   3. **Não precisa criar `~/.elo` manualmente** — isso continua sendo responsabilidade do comando `elo init`, que já está no escopo do MVP. O script de instalação só cuida de deixar o comando `elo` disponível no terminal; a inicialização dos dados (`config.conf`, pastas, etc.) continua acontecendo no primeiro uso.
 
-Importante ter isso em mente desde já no desenvolvimento, mesmo sem implementar o instalador ainda:
+Regras mantidas pela implementação:
 
-- Manter a lógica de "criação do ambiente" (`elo init`) **separada** da lógica de instalação dos scripts, para que o `install.sh` futuro seja só um instalador simples, sem lógica de negócio.
-- Preservar a estrutura de módulos `.sh` na instalação e criar um comando `elo` que invoque o `elo.sh` instalado.
-- Estruturar o repositório desde já pensando em um `install.sh` na raiz do projeto, mesmo que ele só seja escrito depois.
+- A lógica de "criação do ambiente" (`elo init`) permanece **separada** da instalação dos scripts; `install.sh` não contém lógica de negócio.
+- A estrutura de módulos `.sh` é preservada na instalação, e o comando `elo` invoca o `elo.sh` da versão ativa.
+- Cada instalação cria uma versão separada antes de atualizar o symlink ativo.
 
 ## Fora de escopo por enquanto (ideias futuras)
 

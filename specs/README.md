@@ -25,6 +25,8 @@ opção, respectivamente.
   [Estratégia de testes](testing.md).
 - Planejamento técnico:
   [Limitações atuais](limitations.md).
+- Commit, tag ou publicação:
+  [Versionamento, tags e releases](release-management.md).
 
 Uma mudança que altera um contrato **DEVE** atualizar a spec correspondente no
 mesmo conjunto de alterações.

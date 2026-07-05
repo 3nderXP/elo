@@ -3,6 +3,7 @@
 ## Módulos
 
 ```text
+install.sh            instalação e ativação de versões
 elo.sh
 ├── lib/utils.sh       validação, mensagens e confirmação
 ├── lib/help.sh        ajuda geral e ajuda específica por comando
@@ -10,6 +11,10 @@ elo.sh
 ├── lib/instance.sh    ciclo de vida das instâncias
 └── lib/link.sh        symlinks, backup, ativação e reset
 ```
+
+`install.sh` é independente do runtime do Elo: baixa ou copia os scripts,
+valida a sintaxe, cria uma versão imutável e atualiza os symlinks de instalação.
+Ele **NÃO DEVE** inicializar `~/.elo` nem alterar o `.minecraft`.
 
 ## Responsabilidades
 

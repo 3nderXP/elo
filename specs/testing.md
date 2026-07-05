@@ -6,6 +6,7 @@ Os testes de integração estão em:
 
 ```text
 tests/test_elo.sh
+tests/test_install.sh
 ```
 
 ## Isolamento
@@ -29,11 +30,13 @@ Cada execução:
 - caminhos contendo espaços.
 - clareza da ajuda geral e específica;
 - exigência de confirmação para alterações de estado.
+- instalação local isolada e execução do comando instalado.
 
 ## Execução
 
 ```bash
 ./tests/test_elo.sh
+./tests/test_install.sh
 ```
 
 Os testes imprimem resultados no formato TAP simplificado e encerram com

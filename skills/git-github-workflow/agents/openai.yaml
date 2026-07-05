@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git and GitHub Workflow"
+  short_description: "Git seguro, tags semânticas e releases"
+  default_prompt: "Use $git-github-workflow para executar esta operação Git ou GitHub com segurança."

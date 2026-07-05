@@ -2,7 +2,18 @@
 
 set -euo pipefail
 
-ELO_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+ELO_ENTRYPOINT="${BASH_SOURCE[0]}"
+while [[ -L "$ELO_ENTRYPOINT" ]]; do
+  ELO_ENTRYPOINT_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
+  ELO_LINK_TARGET="$(readlink "$ELO_ENTRYPOINT")"
+  if [[ "$ELO_LINK_TARGET" == /* ]]; then
+    ELO_ENTRYPOINT="$ELO_LINK_TARGET"
+  else
+    ELO_ENTRYPOINT="$ELO_ENTRYPOINT_DIR/$ELO_LINK_TARGET"
+  fi
+done
+ELO_SCRIPT_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
+unset ELO_ENTRYPOINT ELO_ENTRYPOINT_DIR ELO_LINK_TARGET
 
 # shellcheck source=lib/utils.sh
 source "$ELO_SCRIPT_DIR/lib/utils.sh"

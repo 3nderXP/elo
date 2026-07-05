@@ -1,7 +1,9 @@
 # Limitações atuais
 
 - não existe trava contra duas execuções simultâneas;
-- não há instalador ou atualização automática;
+- o instalador mantém versões anteriores e ainda não oferece limpeza ou
+  rollback por comando;
+- não há atualização automática;
 - somente um diretório `.minecraft` pode ser configurado;
 - mods não são baixados automaticamente;
 - versões e loaders não são instalados pelo Elo;

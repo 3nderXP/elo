@@ -43,6 +43,10 @@ Antes de editar:
 3. localizar o módulo proprietário;
 4. identificar riscos para dados e compatibilidade.
 
+Antes de executar Git ou GitHub, ler também
+`skills/git-github-workflow/SKILL.md`. Tags e releases **DEVEM** seguir
+`release-management.md`.
+
 Durante a implementação:
 
 1. preservar o comportamento existente não relacionado;
@@ -56,6 +60,7 @@ Antes de concluir:
 ```bash
 bash -n elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
+./tests/test_install.sh
 ```
 
 Também **DEVE** ser verificado:

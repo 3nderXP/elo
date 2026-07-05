@@ -5,6 +5,7 @@
 ```text
 elo/
 ├── elo.sh
+├── install.sh
 ├── lib/
 │   ├── utils.sh
 │   ├── help.sh
@@ -12,9 +13,15 @@ elo/
 │   ├── instance.sh
 │   └── link.sh
 ├── tests/
-│   └── test_elo.sh
+│   ├── test_elo.sh
+│   └── test_install.sh
 ├── skills/
-│   └── elo-development/
+│   ├── elo-development/
+│   │   ├── SKILL.md
+│   │   ├── agents/
+│   │   │   └── openai.yaml
+│   │   └── references/
+│   └── git-github-workflow/
 │       ├── SKILL.md
 │       ├── agents/
 │       │   └── openai.yaml
@@ -30,10 +37,11 @@ elo/
 ## Regras de localização
 
 - `elo.sh` **DEVE** conter somente bootstrap, ajuda e despacho de comandos.
+- `install.sh` **DEVE** instalar os scripts sem executar lógica de negócio.
 - Código reutilizável **DEVE** ficar em `lib/`.
 - Testes automatizados **DEVEM** ficar em `tests/`.
 - Conhecimento operacional para LLMs **DEVE** ficar em
-  `skills/elo-development/`.
+  `skills/<nome-skill>/`, seguindo o formato `SKILL.md`.
 - Contratos normativos de implementação **DEVEM** ficar em `specs/`.
 - Documentação de uso humano **DEVE** ficar no `README.md` ou em uma futura
   pasta `docs/`; ela **NÃO DEVE** ser colocada em `skills/`.

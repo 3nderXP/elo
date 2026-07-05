@@ -26,6 +26,7 @@ Para mudanças no ciclo de filesystem, cobrir:
 ```bash
 bash -n elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
+./tests/test_install.sh
 ```
 
 Manter os testes determinísticos, sem rede e sem dependências externas.

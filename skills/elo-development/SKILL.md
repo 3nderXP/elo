@@ -29,7 +29,8 @@ Antes de alterar o projeto:
 4. Adicionar ou atualizar testes isolados.
 5. Executar `bash -n elo.sh lib/*.sh tests/*.sh`.
 6. Executar `./tests/test_elo.sh`.
-7. Atualizar a spec afetada quando o contrato mudar.
+7. Executar `./tests/test_install.sh` quando instalação ou layout mudar.
+8. Atualizar a spec afetada quando o contrato mudar.
 
 ## Regras inegociáveis
 

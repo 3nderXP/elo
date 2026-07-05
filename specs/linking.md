@@ -1,38 +1,12 @@
-# Symlinks e backups
+# Symlinks and backups
 
-## Contrato de propriedade
+An Elo-owned symlink requires a `LINKED_<folder>` record, a symlink at the
+expected `.minecraft` path, and an exact target under the recorded instance.
+Refuse automatic removal on any mismatch.
 
-Um symlink gerenciado deve atender simultaneamente a estas condições:
+Keep at most one original backup per managed folder. Backups belong to the
+configured `.minecraft`, not an instance. Link and switch must never overwrite
+them. Reset restores `backed_up` paths and leaves `absent` or `removed` paths
+missing.
 
-1. possuir `LINKED_<pasta>` no `state.conf`;
-2. existir em `<minecraft-path>/<pasta>`;
-3. apontar exatamente para
-   `<elo-home>/instances/<nome-instancia>/<pasta>`.
-
-Se qualquer condição falhar, o Elo considera o estado inconsistente e não
-remove o caminho automaticamente.
-
-## Contrato do backup
-
-- existe no máximo um backup original por pasta gerenciável;
-- o backup pertence ao `.minecraft` configurado, não a uma instância;
-- `link` e `switch` nunca sobrescrevem um backup existente;
-- `switch` preserva o backup durante o ciclo de gerenciamento;
-- `reset` move o backup de volta ao local original;
-- uma falha de restauração não descarta o backup afetado.
-
-## Ciclo de ativação
-
-1. validar a instância e o estado atual;
-2. preservar ou remover a pasta real conforme o modo escolhido;
-3. criar um symlink absoluto;
-4. registrar `LINKED_<pasta>`;
-5. atualizar `ACTIVE_INSTANCE`.
-
-## Ciclo de reset
-
-1. validar que cada link registrado pertence ao Elo;
-2. remover o symlink;
-3. restaurar o backup quando `ORIGINAL_<pasta>=backed_up`;
-4. manter o caminho ausente para `absent` ou `removed`;
-5. limpar o estado somente após cada operação correspondente.
+Record state in an order that preserves recovery after failure.

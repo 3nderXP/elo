@@ -37,7 +37,7 @@ elo_kv_set() {
   local temp line found=0
 
   if [[ "$value" == *$'\n'* ]]; then
-    elo_die "Valores de configuração não podem conter quebra de linha."
+    elo_die "Configuration values cannot contain newlines."
     return 1
   fi
 
@@ -100,7 +100,7 @@ elo_state_unset() {
 
 elo_require_initialized() {
   if [[ ! -f "$ELO_CONFIG_FILE" ]]; then
-    elo_die "Elo não inicializado. Execute 'elo init --minecraft-path <caminho>'."
+    elo_die "Elo is not initialized. Run 'elo init --minecraft-path <path>'."
     return 1
   fi
 }
@@ -109,7 +109,7 @@ elo_minecraft_path() {
   local path
   path="$(elo_config_get MINECRAFT_PATH || true)"
   if [[ -z "$path" ]]; then
-    elo_die "MINECRAFT_PATH não está definido em $ELO_CONFIG_FILE."
+    elo_die "MINECRAFT_PATH is not defined in $ELO_CONFIG_FILE."
     return 1
   fi
   printf '%s\n' "$path"
@@ -136,20 +136,20 @@ elo_cmd_init() {
         shift 2
         ;;
       *)
-        elo_die "Opção inválida para init: $1"
+        elo_die "Invalid option for init: $1"
         return
         ;;
     esac
   done
 
   if [[ -z "$minecraft_path" ]]; then
-    elo_die "Informe --minecraft-path <caminho>."
+    elo_die "Provide --minecraft-path <path>."
     return
   fi
   minecraft_path="$(elo_absolute_existing_dir "$minecraft_path")" || return
 
   if [[ -f "$ELO_CONFIG_FILE" ]]; then
-    elo_die "Elo já inicializado em $ELO_HOME."
+    elo_die "Elo is already initialized in $ELO_HOME."
     return
   fi
 
@@ -159,5 +159,5 @@ elo_cmd_init() {
   elo_config_set MINECRAFT_PATH "$minecraft_path"
   elo_config_set ACTIVE_INSTANCE ""
   elo_config_set MANAGED_FOLDERS "$ELO_DEFAULT_MANAGED_FOLDERS"
-  elo_info "Elo inicializado. .minecraft: $minecraft_path"
+  elo_info "Elo initialized. .minecraft: $minecraft_path"
 }

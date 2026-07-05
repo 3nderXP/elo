@@ -5,11 +5,11 @@ elo_info() {
 }
 
 elo_warn() {
-  printf 'aviso: %s\n' "$*" >&2
+  printf 'warning: %s\n' "$*" >&2
 }
 
 elo_error() {
-  printf 'erro: %s\n' "$*" >&2
+  printf 'error: %s\n' "$*" >&2
 }
 
 elo_die() {
@@ -26,18 +26,18 @@ elo_confirm() {
   fi
 
   if [[ ! -t 0 ]]; then
-    elo_die "$prompt Use --yes em execução não interativa."
+    elo_die "$prompt Use --yes for non-interactive execution."
     return 1
   fi
 
-  read -r -p "$prompt [s/N] " answer
-  [[ "$answer" == "s" || "$answer" == "S" || "$answer" == "sim" || "$answer" == "SIM" ]]
+  read -r -p "$prompt [y/N] " answer
+  [[ "$answer" == "y" || "$answer" == "Y" || "$answer" == "yes" || "$answer" == "YES" ]]
 }
 
 elo_validate_instance_name() {
   local name="$1"
   if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    elo_die "Nome de instância inválido: use apenas letras, números, '_' e '-'."
+    elo_die "Invalid instance name: use only letters, numbers, '_' and '-'."
     return 1
   fi
 }
@@ -45,7 +45,7 @@ elo_validate_instance_name() {
 elo_validate_managed_folder() {
   local folder="$1"
   if [[ ! "$folder" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    elo_die "Nome inválido em MANAGED_FOLDERS: $folder"
+    elo_die "Invalid name in MANAGED_FOLDERS: $folder"
     return 1
   fi
 }
@@ -54,7 +54,7 @@ elo_require_value() {
   local option="$1"
   local value="${2:-}"
   if [[ -z "$value" ]]; then
-    elo_die "A opção $option requer um valor."
+    elo_die "Option $option requires a value."
     return 1
   fi
 }
@@ -62,7 +62,7 @@ elo_require_value() {
 elo_absolute_existing_dir() {
   local path="$1"
   if [[ ! -d "$path" ]]; then
-    elo_die "Diretório não encontrado: $path"
+    elo_die "Directory not found: $path"
     return 1
   fi
   (cd -- "$path" && pwd -P)

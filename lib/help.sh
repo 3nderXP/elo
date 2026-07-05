@@ -2,14 +2,14 @@
 
 elo_help_header() {
   cat <<'EOF'
-Elo — gerenciador de instâncias de Minecraft
+Elo — Minecraft instance manager
 
-O Elo troca mods, resourcepacks, shaders e configurações usando symlinks,
-sem depender do launcher utilizado.
+Elo switches mods, resource packs, shaders, and configuration through
+symlinks without depending on a specific launcher.
 
-Notação:
-  <valor>  obrigatório
-  [valor]  opcional
+Notation:
+  <value>  required
+  [value]  optional
 EOF
 }
 
@@ -17,196 +17,190 @@ elo_help_general() {
   elo_help_header
   cat <<'EOF'
 
-Uso:
-  elo <comando> [opções]
+Usage:
+  elo <command> [options]
 
-Comandos:
-  init      Configura o diretório .minecraft que será gerenciado
-  new       Cria uma instância vazia
-  link      Ativa uma instância e cria os symlinks
-  switch    Troca a instância ativa
-  reset     Remove os symlinks e restaura as pastas originais
-  list      Lista as instâncias existentes
-  status    Diagnostica o estado atual do gerenciamento
-  remove    Remove permanentemente uma instância
-  help      Mostra esta ajuda ou a ajuda de um comando
+Commands:
+  init      Configure the .minecraft directory to manage
+  new       Create an empty instance
+  link      Activate an instance and create its symlinks
+  switch    Switch the active instance
+  reset     Remove managed symlinks and restore original directories
+  list      List existing instances
+  status    Diagnose the current managed state
+  remove    Permanently remove an instance
+  help      Show general or command-specific help
 
-Primeiros passos:
+Getting started:
   elo init --minecraft-path "$HOME/.minecraft"
   elo new fabric-1_21 --version 1.21 --loader fabric
   elo link fabric-1_21
   elo status
   elo reset
 
-Ajuda detalhada:
-  elo help <comando>
-  elo <comando> --help
+Detailed help:
+  elo help <command>
+  elo <command> --help
 
-Segurança:
-  O modo padrão de link preserva as pastas originais em backup.
-  Operações destrutivas ou que alteram o estado pedem confirmação.
-  Use --yes apenas quando quiser confirmar de forma não interativa.
+Safety:
+  The default link mode backs up original directories.
+  Destructive or state-changing operations require confirmation.
+  Use --yes only for deliberate non-interactive execution.
 EOF
 }
 
 elo_help_init() {
   cat <<'EOF'
-Uso:
-  elo init --minecraft-path <caminho>
+Usage:
+  elo init --minecraft-path <path>
 
-Inicializa o Elo e escolhe o diretório Minecraft que será gerenciado.
-Nenhum arquivo do Minecraft é movido durante este comando.
+Initialize Elo and select the Minecraft directory to manage.
+This command does not move any Minecraft files.
 
-Campos obrigatórios:
-  --minecraft-path <caminho>
-      Diretório .minecraft existente. Caminhos com espaços são aceitos.
+Required fields:
+  --minecraft-path <path>
+      An existing .minecraft directory. Paths containing spaces are accepted.
 
-Exemplo:
+Example:
   elo init --minecraft-path "$HOME/.minecraft"
 EOF
 }
 
 elo_help_new() {
   cat <<'EOF'
-Uso:
-  elo new <nome-instancia> [--version <versão>] [--loader <loader>]
+Usage:
+  elo new <instance-name> [--version <version>] [--loader <loader>]
 
-Cria uma instância com as pastas mods, resourcepacks, shaderpacks e config.
+Create an instance with mods, resourcepacks, shaderpacks, and config folders.
 
-Campos obrigatórios:
-  <nome-instancia>
-      Identificador único. Aceita letras, números, "_" e "-".
+Required fields:
+  <instance-name>
+      Unique identifier containing only letters, numbers, "_" and "-".
 
-Campos opcionais:
-  --version <versão>
-      Versão informativa do Minecraft. Padrão: desconhecida.
+Optional fields:
+  --version <version>
+      Informational Minecraft version. Default: unknown.
   --loader <loader>
-      Loader informativo, como fabric, forge ou neoforge. Padrão: vanilla.
+      Informational loader such as fabric, forge, or neoforge. Default: vanilla.
 
-Exemplo:
+Example:
   elo new fabric-1_21 --version 1.21 --loader fabric
 EOF
 }
 
 elo_help_link() {
   cat <<'EOF'
-Uso:
-  elo link <nome-instancia> [--mode <modo>] [--yes]
+Usage:
+  elo link <instance-name> [--mode <mode>] [--yes]
 
-Ativa uma instância e aponta as pastas do .minecraft para ela.
+Activate an instance by linking .minecraft folders to it.
 
-Campos obrigatórios:
-  <nome-instancia>
-      Nome de uma instância existente.
+Required fields:
+  <instance-name>
+      Name of an existing instance.
 
-Campos opcionais:
-  --mode <modo>
-      backup   Preserva as pastas reais antes de criar os links. Padrão.
-      replace  Remove as pastas reais após confirmação. Não é reversível.
+Optional fields:
+  --mode <mode>
+      backup   Preserve real directories before linking. Default.
+      replace  Permanently remove real directories after confirmation.
   --yes
-      Confirma todas as perguntas. Indicado somente para automação consciente.
+      Confirm every prompt. Use only for deliberate automation.
 
-Exemplos:
+Examples:
   elo link fabric-1_21
-  elo link teste-limpo --mode replace
+  elo link clean-test --mode replace
 EOF
 }
 
 elo_help_switch() {
   cat <<'EOF'
-Uso:
-  elo switch <nome-instancia> [--yes]
+Usage:
+  elo switch <instance-name> [--yes]
 
-Troca os symlinks da instância ativa para outra instância.
-O backup original não é alterado.
+Switch managed symlinks from the active instance to another instance.
+The original backup remains unchanged.
 
-Campos obrigatórios:
-  <nome-instancia>
-      Nome da instância que será ativada.
+Required fields:
+  <instance-name>
+      Name of the instance to activate.
 
-Campos opcionais:
+Optional fields:
   --yes
-      Confirma a troca sem fazer uma pergunta interativa.
+      Confirm the switch without an interactive prompt.
 
-Exemplo:
+Example:
   elo switch vanilla-1_21
 EOF
 }
 
 elo_help_reset() {
   cat <<'EOF'
-Uso:
+Usage:
   elo reset [--yes]
 
-Desfaz o gerenciamento atual: remove os symlinks reconhecidos pelo Elo e
-restaura as pastas reais preservadas no backup original.
+Stop managing the current instance, remove Elo-owned symlinks, and restore
+the real directories preserved in the original backup.
 
-Campos opcionais:
+Optional fields:
   --yes
-      Confirma o reset sem fazer uma pergunta interativa.
+      Confirm the reset without an interactive prompt.
 
-Observação:
-  Dados removidos anteriormente com --mode replace não podem ser restaurados.
-
-Exemplo:
-  elo reset
+Note:
+  Data previously removed with --mode replace cannot be restored.
 EOF
 }
 
 elo_help_list() {
   cat <<'EOF'
-Uso:
+Usage:
   elo list
 
-Lista nome, versão, loader e situação de todas as instâncias.
-Este comando não possui campos nem altera arquivos.
+List every instance with its name, version, loader, and active status.
+This command has no fields and does not modify files.
 EOF
 }
 
 elo_help_status() {
   cat <<'EOF'
-Uso:
+Usage:
   elo status
 
-Mostra a instância ativa e verifica cada symlink e backup gerenciado.
-Retorna código 1 quando encontra links ausentes, quebrados ou divergentes.
-Este comando não possui campos nem altera arquivos.
+Show the active instance and verify every managed symlink and backup.
+Exit with status 1 when a link is missing, broken, or divergent.
+This command has no fields and does not modify files.
 EOF
 }
 
 elo_help_remove() {
   cat <<'EOF'
-Uso:
-  elo remove <nome-instancia> [--reset] [--yes]
+Usage:
+  elo remove <instance-name> [--reset] [--yes]
 
-Remove permanentemente uma instância e todo o conteúdo armazenado nela.
+Permanently remove an instance and all content stored in it.
 
-Campos obrigatórios:
-  <nome-instancia>
-      Nome da instância que será removida.
+Required fields:
+  <instance-name>
+      Name of the instance to remove.
 
-Campos opcionais:
+Optional fields:
   --reset
-      Se a instância estiver ativa, restaura o .minecraft antes da remoção.
+      Restore .minecraft first when the instance is active.
   --yes
-      Confirma o reset e a remoção sem perguntas interativas.
+      Confirm reset and removal without interactive prompts.
 
-Exemplo:
-  elo remove teste-antigo
-  elo remove instancia-ativa --reset
+Examples:
+  elo remove old-test
+  elo remove active-instance --reset
 EOF
 }
 
 elo_help_help() {
   cat <<'EOF'
-Uso:
-  elo help [comando]
+Usage:
+  elo help [command]
 
-Sem argumento, mostra a visão geral. Com um comando, mostra campos,
-comportamento, valores padrão e exemplos específicos.
-
-Exemplo:
-  elo help link
+Without a command, show the overview. With a command, show its fields,
+defaults, effects, and examples.
 EOF
 }
 
@@ -225,7 +219,7 @@ elo_help_command() {
     remove) elo_help_remove ;;
     help) elo_help_help ;;
     *)
-      elo_error "Não existe ajuda para o comando: $command"
+      elo_error "No help is available for command: $command"
       elo_help_general >&2
       return 2
       ;;

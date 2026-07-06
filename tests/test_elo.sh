@@ -162,6 +162,11 @@ test_help_is_explicit() {
   assert_contains "$output" "replace"
   assert_contains "$output" "Permanently remove"
 
+  output="$("$ELO" help update)"
+  assert_contains "$output" "latest stable GitHub release"
+  assert_contains "$output" "Pre-releases"
+  assert_contains "$output" "--version <version>"
+
   pass "help distinguishes fields and explains effects"
 }
 

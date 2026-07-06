@@ -16,6 +16,7 @@ ELO_INSTALL_FILES=(
   "lib/config.sh"
   "lib/instance.sh"
   "lib/link.sh"
+  "lib/update.sh"
 )
 
 install_info() {
@@ -142,6 +143,22 @@ install_validate_stage() {
   chmod +x "$stage/elo.sh"
 }
 
+install_write_config() {
+  local config="$ELO_INSTALL_DIR/install.conf"
+  local temporary="$ELO_INSTALL_DIR/install.conf.tmp.$$"
+
+  case "$ELO_REPOSITORY$ELO_BIN_DIR" in
+    *'
+'*) install_die "Repository and installation paths cannot contain newlines." ;;
+  esac
+
+  {
+    printf 'REPOSITORY=%s\n' "$ELO_REPOSITORY"
+    printf 'BIN_DIR=%s\n' "$ELO_BIN_DIR"
+  } >"$temporary"
+  mv "$temporary" "$config"
+}
+
 install_activate_release() {
   local stage="$1"
   local release_id release current command_path
@@ -159,6 +176,7 @@ install_activate_release() {
   fi
 
   mkdir -p "$release/lib" "$ELO_BIN_DIR"
+  install_write_config
   cp "$stage/elo.sh" "$release/elo.sh"
   cp "$stage"/lib/*.sh "$release/lib/"
   chmod +x "$release/elo.sh"

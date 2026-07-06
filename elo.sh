@@ -25,6 +25,8 @@ source "$ELO_SCRIPT_DIR/lib/config.sh"
 source "$ELO_SCRIPT_DIR/lib/instance.sh"
 # shellcheck source=lib/link.sh
 source "$ELO_SCRIPT_DIR/lib/link.sh"
+# shellcheck source=lib/update.sh
+source "$ELO_SCRIPT_DIR/lib/update.sh"
 
 main() {
   local command="${1:-help}"
@@ -46,6 +48,7 @@ main() {
     list) elo_cmd_list "$@" ;;
     status) elo_cmd_status "$@" ;;
     remove) elo_cmd_remove "$@" ;;
+    update) elo_cmd_update "$@" ;;
     help) elo_help_command "${1:-}" ;;
     --help | -h) elo_help_general ;;
     *)

@@ -14,6 +14,7 @@ The MVP supports:
 - backup and restoration of original `.minecraft` directories;
 - detection of external, broken, or divergent symlinks;
 - interactive confirmation for state-changing operations.
+- stable or version-selected self-updates.
 
 The current target platforms are Linux and macOS with Bash.
 
@@ -41,6 +42,17 @@ After installation:
 elo init --minecraft-path "$HOME/.minecraft"
 elo --help
 ```
+
+Update to the latest stable release, or select an exact release (including a
+pre-release):
+
+```bash
+elo update
+elo update --version v1.2.0-rc.1
+```
+
+After a successful update, Elo keeps the active and immediately previous
+releases and removes older managed releases.
 
 ## Development
 
@@ -73,6 +85,7 @@ lib/help.sh            general and command-specific help
 lib/config.sh          config.conf and state.conf persistence
 lib/instance.sh        instance lifecycle
 lib/link.sh            symlinks, backup, switch, reset, and status
+lib/update.sh          stable and version-selected self-updates
 tests/test_elo.sh      instance-management integration tests
 tests/test_install.sh  isolated installer integration test
 ```

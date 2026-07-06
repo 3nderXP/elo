@@ -1,7 +1,7 @@
 # Current limitations
 
 - No concurrent-process lock or transaction journal
-- No automatic update or release cleanup command
+- No user-facing rollback command
 - One configured `.minecraft` directory
 - No automatic downloads or loader installation
 - No native Windows support

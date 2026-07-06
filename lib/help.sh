@@ -29,6 +29,7 @@ Commands:
   list      List existing instances
   status    Diagnose the current managed state
   remove    Permanently remove an instance
+  update    Install a stable or selected Elo release
   help      Show general or command-specific help
 
 Getting started:
@@ -194,6 +195,29 @@ Examples:
 EOF
 }
 
+elo_help_update() {
+  cat <<'EOF'
+Usage:
+  elo update [--version <version>] [--yes]
+
+Install and activate an Elo release. The previous release is retained for
+recovery, and older managed releases are removed after successful activation.
+By default, the latest stable GitHub release is selected.
+
+Optional fields:
+  --version <version>
+      Exact SemVer release to install. The leading "v" is optional.
+      Pre-releases such as v1.0.0-rc.1 are accepted.
+  --yes
+      Confirm the update without an interactive prompt.
+
+Examples:
+  elo update
+  elo update --version v1.2.0
+  elo update --version 2.0.0-rc.1 --yes
+EOF
+}
+
 elo_help_help() {
   cat <<'EOF'
 Usage:
@@ -217,6 +241,7 @@ elo_help_command() {
     list) elo_help_list ;;
     status) elo_help_status ;;
     remove) elo_help_remove ;;
+    update) elo_help_update ;;
     help) elo_help_help ;;
     *)
       elo_error "No help is available for command: $command"

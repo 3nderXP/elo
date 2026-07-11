@@ -17,6 +17,8 @@ ELO_INSTALL_FILES=(
   "lib/instance.sh"
   "lib/link.sh"
   "lib/update.sh"
+  "lib/provider_modrinth.sh"
+  "lib/provider.sh"
 )
 
 install_info() {

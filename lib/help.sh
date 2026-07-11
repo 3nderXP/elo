@@ -30,6 +30,11 @@ Commands:
   status    Diagnose the current managed state
   remove    Permanently remove an instance
   update    Install a stable or selected Elo release
+  search    Search addons from a provider
+  install   Install an addon and required dependencies
+  addons    List addons installed in an instance
+  adopt     Add an external addon file to Elo management
+  uninstall Remove one managed addon
   help      Show general or command-specific help
 
 Getting started:
@@ -228,6 +233,63 @@ defaults, effects, and examples.
 EOF
 }
 
+elo_help_search() {
+  cat <<'EOF'
+Usage:
+  elo search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
+
+Search public provider projects. Default provider: modrinth. Default limit: 10.
+When an instance is selected, its Minecraft version and loader filter results.
+Types: mod, resourcepack, shader. Limit: 1 through 100.
+EOF
+}
+
+elo_help_install() {
+  cat <<'EOF'
+Usage:
+  elo install <instance-name> <id-or-slug> [--provider <provider>] [--yes]
+
+Download a compatible addon and its required dependencies. Default provider:
+modrinth. Requires curl and jq. Existing files are never overwritten.
+EOF
+}
+
+elo_help_addons() {
+  cat <<'EOF'
+Usage:
+  elo addons <instance-name>
+
+Scan addon folders and report managed, modified, missing, and external files.
+EOF
+}
+
+elo_help_adopt() {
+  cat <<'EOF'
+Usage:
+  elo adopt <instance-name> <relative-path> [--yes]
+
+Register an existing external file without moving or copying it. The path must
+be directly inside mods, resourcepacks, or shaderpacks. Elo stores its current
+SHA-512 and reports later changes as modified.
+
+Example:
+  elo adopt fabric-1_21 mods/manual-addon.jar --yes
+EOF
+}
+
+elo_help_uninstall() {
+  cat <<'EOF'
+Usage:
+  elo uninstall <instance-name> <id-or-slug> [--provider <provider>] [--yes]
+  elo uninstall <instance-name> --file <relative-path> [--yes]
+
+Managed files are removed only when their SHA-512 hash still matches. Use
+--file with an exact path such as mods/example.jar to explicitly remove an
+external or modified file. Paths must be directly inside mods, resourcepacks,
+or shaderpacks. Dependencies remain installed until explicitly removed.
+EOF
+}
+
 elo_help_command() {
   local command="${1:-}"
 
@@ -242,6 +304,11 @@ elo_help_command() {
     status) elo_help_status ;;
     remove) elo_help_remove ;;
     update) elo_help_update ;;
+    search) elo_help_search ;;
+    install) elo_help_install ;;
+    addons) elo_help_addons ;;
+    adopt) elo_help_adopt ;;
+    uninstall) elo_help_uninstall ;;
     help) elo_help_help ;;
     *)
       elo_error "No help is available for command: $command"

@@ -64,12 +64,23 @@ releases and removes older managed releases.
 ./elo.sh link fabric-1_21
 ./elo.sh status
 ./elo.sh search sodium --type mod --instance fabric-1_21
+./elo.sh provider set modrinth --yes
 ./elo.sh install fabric-1_21 sodium --yes
 ./elo.sh addons fabric-1_21
 ./elo.sh adopt fabric-1_21 mods/manual-addon.jar --yes
 ./elo.sh uninstall fabric-1_21 --file mods/manual-addon.jar --yes
 ./elo.sh reset
 ```
+
+Preview required dependencies without changing files:
+
+```bash
+./elo.sh install fabric-1_21 sodium --dry-run
+```
+
+`uninstall --remove-orphans` offers cleanup based on required dependency edges
+known to Elo. Review its list: optional relationships and external addon usage
+cannot always be inferred.
 
 Use command-specific help for required fields, defaults, and risks:
 

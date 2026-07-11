@@ -30,6 +30,7 @@ Commands:
   status    Diagnose the current managed state
   remove    Permanently remove an instance
   update    Install a stable or selected Elo release
+  provider  Show or change the preferred addon provider
   search    Search addons from a provider
   install   Install an addon and required dependencies
   addons    List addons installed in an instance
@@ -238,7 +239,7 @@ elo_help_search() {
 Usage:
   elo search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
 
-Search public provider projects. Default provider: modrinth. Default limit: 10.
+Search public provider projects. Default: preferred provider. Default limit: 10.
 When an instance is selected, its Minecraft version and loader filter results.
 Types: mod, resourcepack, shader. Limit: 1 through 100.
 EOF
@@ -247,10 +248,14 @@ EOF
 elo_help_install() {
   cat <<'EOF'
 Usage:
-  elo install <instance-name> <id-or-slug> [--provider <provider>] [--yes]
+  elo install <instance-name> <id-or-slug> [--provider <provider>] [--dry-run] [--yes]
 
-Download a compatible addon and its required dependencies. Default provider:
-modrinth. Requires curl and jq. Existing files are never overwritten.
+Download a compatible addon and its required dependencies. Defaults to the
+preferred provider. Requires curl and jq. A matching existing file is verified,
+reused, and registered; different content is never overwritten.
+
+The required dependency plan is always shown before confirmation. Use
+--dry-run to resolve and display the plan without downloading or changing files.
 EOF
 }
 
@@ -260,6 +265,24 @@ Usage:
   elo addons <instance-name>
 
 Scan addon folders and report managed, modified, missing, and external files.
+Output uses a fixed 160-character table and truncates long values with "...".
+EOF
+}
+
+elo_help_provider() {
+  cat <<'EOF'
+Usage:
+  elo provider
+  elo provider show
+  elo provider list
+  elo provider set <provider> [--yes]
+
+Show, list, or change the preferred addon provider. Search, install, and
+identifier-based uninstall use this preference unless --provider overrides it.
+Default: modrinth.
+
+Example:
+  elo provider set modrinth --yes
 EOF
 }
 
@@ -280,13 +303,16 @@ EOF
 elo_help_uninstall() {
   cat <<'EOF'
 Usage:
-  elo uninstall <instance-name> <id-or-slug> [--provider <provider>] [--yes]
-  elo uninstall <instance-name> --file <relative-path> [--yes]
+  elo uninstall <instance-name> <id-or-slug> [--provider <provider>] [--remove-orphans] [--yes]
+  elo uninstall <instance-name> --file <relative-path> [--remove-orphans] [--yes]
 
 Managed files are removed only when their SHA-512 hash still matches. Use
 --file with an exact path such as mods/example.jar to explicitly remove an
 external or modified file. Paths must be directly inside mods, resourcepacks,
 or shaderpacks. Dependencies remain installed until explicitly removed.
+Use --remove-orphans to find dependencies unreachable from every remaining
+direct addon and offer verified removal. Review the list: optional or external
+usage may be unknown. Modified files are retained.
 EOF
 }
 
@@ -304,6 +330,7 @@ elo_help_command() {
     status) elo_help_status ;;
     remove) elo_help_remove ;;
     update) elo_help_update ;;
+    provider) elo_help_provider ;;
     search) elo_help_search ;;
     install) elo_help_install ;;
     addons) elo_help_addons ;;

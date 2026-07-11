@@ -53,6 +53,7 @@ main() {
     status) elo_cmd_status "$@" ;;
     remove) elo_cmd_remove "$@" ;;
     update) elo_cmd_update "$@" ;;
+    provider) elo_cmd_provider "$@" ;;
     search) elo_cmd_search "$@" ;;
     install) elo_cmd_install "$@" ;;
     addons) elo_cmd_addons "$@" ;;

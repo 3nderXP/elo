@@ -71,7 +71,7 @@ elo_provider_modrinth_resolve() {
 elo_provider_modrinth_get_dependencies() {
   local version_id="$1" version
   version="$(elo_provider_modrinth_request "/version/$version_id")" || return
-  printf '%s' "$version" | jq -r '.dependencies[] | select(.dependency_type == "required") | [(.version_id // ""), (.project_id // "")] | @tsv'
+  printf '%s' "$version" | jq -r '.dependencies[] | select(.dependency_type == "required") | [(.project_id // "-"), (.version_id // "-")] | @tsv'
 }
 
 elo_provider_modrinth_download() {

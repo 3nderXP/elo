@@ -5,7 +5,7 @@
 - One configured `.minecraft` directory
 - Modrinth only; no CurseForge provider or provider authentication
 - No automatic loader installation
-- Dependency cleanup is explicit; uninstall does not infer shared orphans
+- Orphan cleanup cannot infer optional or external-addon relationships
 - No native Windows support
 - Human-oriented output only; no JSON
 - Integration tests only; no per-module unit suite

@@ -125,6 +125,12 @@ elo_active_instance() {
   elo_config_get ACTIVE_INSTANCE || true
 }
 
+elo_preferred_provider() {
+  local provider
+  provider="$(elo_config_get PREFERRED_PROVIDER || true)"
+  printf '%s\n' "${provider:-modrinth}"
+}
+
 elo_cmd_init() {
   local minecraft_path=""
 
@@ -159,5 +165,6 @@ elo_cmd_init() {
   elo_config_set MINECRAFT_PATH "$minecraft_path"
   elo_config_set ACTIVE_INSTANCE ""
   elo_config_set MANAGED_FOLDERS "$ELO_DEFAULT_MANAGED_FOLDERS"
+  elo_config_set PREFERRED_PROVIDER modrinth
   elo_info "Elo initialized. .minecraft: $minecraft_path"
 }

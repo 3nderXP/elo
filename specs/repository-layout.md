@@ -19,3 +19,6 @@ README or `docs/`. Runtime data must never be created in the repository.
 New modules require a cohesive responsibility, `elo_` functions, explicit
 loading, tests, and an architecture update. Generated artifacts must use
 specific `.gitignore` rules.
+
+Feature action plans may remain at repository root while active. Normative
+behavior remains in `specs/`; plans do not override specifications.

@@ -27,6 +27,10 @@ source "$ELO_SCRIPT_DIR/lib/instance.sh"
 source "$ELO_SCRIPT_DIR/lib/link.sh"
 # shellcheck source=lib/update.sh
 source "$ELO_SCRIPT_DIR/lib/update.sh"
+# shellcheck source=lib/provider_modrinth.sh
+source "$ELO_SCRIPT_DIR/lib/provider_modrinth.sh"
+# shellcheck source=lib/provider.sh
+source "$ELO_SCRIPT_DIR/lib/provider.sh"
 
 main() {
   local command="${1:-help}"
@@ -49,6 +53,12 @@ main() {
     status) elo_cmd_status "$@" ;;
     remove) elo_cmd_remove "$@" ;;
     update) elo_cmd_update "$@" ;;
+    provider) elo_cmd_provider "$@" ;;
+    search) elo_cmd_search "$@" ;;
+    install) elo_cmd_install "$@" ;;
+    addons) elo_cmd_addons "$@" ;;
+    adopt) elo_cmd_adopt "$@" ;;
+    uninstall) elo_cmd_uninstall "$@" ;;
     help) elo_help_command "${1:-}" ;;
     --help | -h) elo_help_general ;;
     *)

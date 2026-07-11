@@ -15,6 +15,7 @@ The MVP supports:
 - detection of external, broken, or divergent symlinks;
 - interactive confirmation for state-changing operations.
 - stable or version-selected self-updates.
+- Modrinth addon search, installation, registry listing, and removal.
 
 The current target platforms are Linux and macOS with Bash.
 
@@ -62,8 +63,24 @@ releases and removes older managed releases.
 ./elo.sh new fabric-1_21 --version 1.21 --loader fabric
 ./elo.sh link fabric-1_21
 ./elo.sh status
+./elo.sh search sodium --type mod --instance fabric-1_21
+./elo.sh provider set modrinth --yes
+./elo.sh install fabric-1_21 sodium --yes
+./elo.sh addons fabric-1_21
+./elo.sh adopt fabric-1_21 mods/manual-addon.jar --yes
+./elo.sh uninstall fabric-1_21 --file mods/manual-addon.jar --yes
 ./elo.sh reset
 ```
+
+Preview required dependencies without changing files:
+
+```bash
+./elo.sh install fabric-1_21 sodium --dry-run
+```
+
+`uninstall --remove-orphans` offers cleanup based on required dependency edges
+known to Elo. Review its list: optional relationships and external addon usage
+cannot always be inferred.
 
 Use command-specific help for required fields, defaults, and risks:
 
@@ -86,8 +103,11 @@ lib/config.sh          config.conf and state.conf persistence
 lib/instance.sh        instance lifecycle
 lib/link.sh            symlinks, backup, switch, reset, and status
 lib/update.sh          stable and version-selected self-updates
+lib/provider.sh        provider routing and addon lifecycle
+lib/provider_modrinth.sh public Modrinth API integration
 tests/test_elo.sh      instance-management integration tests
 tests/test_install.sh  isolated installer integration test
+tests/test_provider.sh offline provider integration tests
 ```
 
 `elo.sh` is intentionally small. Filesystem logic that can move or remove data

@@ -9,6 +9,8 @@ lib/config.sh         configuration and state persistence
 lib/instance.sh       instance lifecycle
 lib/link.sh           symlinks, backup, activation, reset, status
 lib/update.sh         release selection and installer delegation
+lib/provider.sh       provider routing, addon registry, and lifecycle
+lib/provider_modrinth.sh Modrinth API requests and downloads
 ```
 
 `elo.sh` must not contain business logic. Functions use the `elo_` prefix;
@@ -20,3 +22,8 @@ The installer writes `install.conf` under its installation root with the
 repository and command directory. The update command parses this file as data
 and delegates staged download, validation, and atomic activation to the target
 release's installer.
+
+Provider modules implement `search`, `resolve`, `get_dependencies`, and
+`download` functions. The provider manager owns CLI behavior, recursive
+dependency coordination, and `addons.conf`; provider-specific modules do not
+write runtime state.

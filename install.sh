@@ -8,6 +8,9 @@ ELO_INSTALL_DIR="${ELO_INSTALL_DIR:-$HOME/.local/share/elo}"
 ELO_BIN_DIR="${ELO_BIN_DIR:-$HOME/.local/bin}"
 ELO_SOURCE_DIR=""
 ELO_INSTALL_STAGE=""
+ELO_GUM_VERSION="${ELO_GUM_VERSION:-0.17.0}"
+ELO_GUM_REPOSITORY="${ELO_GUM_REPOSITORY:-charmbracelet/gum}"
+ELO_GUM_FORCE_INSTALL="${ELO_GUM_FORCE_INSTALL:-0}"
 
 ELO_INSTALL_FILES=(
   "elo.sh"
@@ -19,6 +22,7 @@ ELO_INSTALL_FILES=(
   "lib/update.sh"
   "lib/provider_modrinth.sh"
   "lib/provider.sh"
+  "lib/interactive.sh"
 )
 
 install_info() {
@@ -49,7 +53,7 @@ Options:
   --help                    Show this help
 
 Equivalent environment variables:
-  ELO_INSTALL_DIR, ELO_BIN_DIR, ELO_REPOSITORY e ELO_REF
+  ELO_INSTALL_DIR, ELO_BIN_DIR, ELO_REPOSITORY, ELO_REF, ELO_GUM_VERSION
 EOF
 }
 
@@ -145,6 +149,88 @@ install_validate_stage() {
   chmod +x "$stage/elo.sh"
 }
 
+install_gum_platform() {
+  local os architecture
+
+  os="$(uname -s)"
+  architecture="$(uname -m)"
+  case "$os" in
+    Linux) os="Linux" ;;
+    Darwin) os="Darwin" ;;
+    *) install_die "Gum installation is unsupported on this system: $os" ;;
+  esac
+  case "$architecture" in
+    x86_64 | amd64) architecture="x86_64" ;;
+    arm64 | aarch64) architecture="arm64" ;;
+    armv7l | armv7) architecture="armv7" ;;
+    *) install_die "Gum installation is unsupported on this architecture: $architecture" ;;
+  esac
+  printf '%s_%s\n' "$os" "$architecture"
+}
+
+install_verify_sha256() {
+  local file="$1" expected="$2" actual
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "$file")"
+  elif command -v shasum >/dev/null 2>&1; then
+    actual="$(shasum -a 256 "$file")"
+  else
+    install_die "sha256sum or shasum is required to verify Gum."
+  fi
+  actual="${actual%% *}"
+  [[ "$actual" == "$expected" ]] || install_die "Gum archive failed SHA-256 verification."
+}
+
+install_gum() {
+  local platform asset base_url archive checksums expected destination temporary extracted gum_command
+
+  if [[ "$ELO_GUM_FORCE_INSTALL" != "1" ]] && command -v gum >/dev/null 2>&1; then
+    install_info "Gum is already available: $(command -v gum)"
+    return
+  fi
+  gum_command="$ELO_BIN_DIR/gum"
+  if [[ -e "$gum_command" || -L "$gum_command" ]]; then
+    if [[ "$ELO_GUM_FORCE_INSTALL" != "1" && -x "$gum_command" ]]; then
+      install_info "Gum is already installed at $gum_command"
+      return
+    fi
+    install_die "Path $gum_command exists and will not be overwritten."
+  fi
+  command -v curl >/dev/null 2>&1 || install_die "curl is required to install Gum."
+  command -v tar >/dev/null 2>&1 || install_die "tar is required to install Gum."
+
+  platform="$(install_gum_platform)"
+  asset="gum_${ELO_GUM_VERSION}_${platform}.tar.gz"
+  base_url="https://github.com/$ELO_GUM_REPOSITORY/releases/download/v$ELO_GUM_VERSION"
+  archive="$ELO_INSTALL_STAGE/$asset"
+  checksums="$ELO_INSTALL_STAGE/gum-checksums.txt"
+
+  install_info "Downloading Gum v$ELO_GUM_VERSION..."
+  curl -fsSL "$base_url/$asset" -o "$archive" ||
+    install_die "Failed to download Gum for $platform."
+  curl -fsSL "$base_url/checksums.txt" -o "$checksums" ||
+    install_die "Failed to download Gum checksums."
+  expected="$(awk -v asset="$asset" '$2 == asset { print $1; exit }' "$checksums")"
+  [[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] ||
+    install_die "Gum checksum is missing or invalid for $asset."
+  install_verify_sha256 "$archive" "$expected"
+
+  temporary="$ELO_INSTALL_STAGE/gum-extracted"
+  mkdir -p "$temporary"
+  tar -xzf "$archive" -C "$temporary" || install_die "Failed to extract Gum."
+  extracted="$temporary/${asset%.tar.gz}/gum"
+  [[ -f "$extracted" && ! -L "$extracted" ]] ||
+    install_die "The Gum archive does not contain its expected executable."
+
+  destination="$ELO_INSTALL_DIR/tools/gum-$ELO_GUM_VERSION"
+  mkdir -p "$destination" "$ELO_BIN_DIR"
+  cp "$extracted" "$destination/gum"
+  chmod +x "$destination/gum"
+  ln -s "$destination/gum" "$gum_command"
+  install_info "Gum installed at $destination/gum"
+}
+
 install_write_config() {
   local config="$ELO_INSTALL_DIR/install.conf"
   local temporary="$ELO_INSTALL_DIR/install.conf.tmp.$$"
@@ -210,6 +296,7 @@ main() {
   fi
 
   install_validate_stage "$ELO_INSTALL_STAGE"
+  install_gum
   install_activate_release "$ELO_INSTALL_STAGE"
 }
 

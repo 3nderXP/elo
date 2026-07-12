@@ -20,6 +20,11 @@ elo uninstall <instance-name> --file <mods|resourcepacks|shaderpacks>/<filename>
 elo help [command]
 ```
 
+`elo` without arguments opens the Gum-powered interactive interface when stdin
+and stdout are terminals. The installer supplies Gum in user space when it is
+not already available. Supplying a command keeps the direct CLI contract and
+remains suitable for automation.
+
 All output must be English. Use `info:`, `warning:`, and `error:` prefixes.
 General and command-specific help must explain required fields, defaults,
 risks, and examples.

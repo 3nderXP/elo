@@ -11,6 +11,7 @@ lib/link.sh           symlinks, backup, activation, reset, status
 lib/update.sh         release selection and installer delegation
 lib/provider.sh       provider routing, addon registry, and lifecycle
 lib/provider_modrinth.sh Modrinth API requests and downloads
+lib/interactive.sh     Gum UI that delegates to existing command functions
 ```
 
 `elo.sh` must not contain business logic. Functions use the `elo_` prefix;

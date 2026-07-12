@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ELO_ENTRYPOINT="${BASH_SOURCE[0]}"
+ELO_COMMAND_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
 while [[ -L "$ELO_ENTRYPOINT" ]]; do
   ELO_ENTRYPOINT_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
   ELO_LINK_TARGET="$(readlink "$ELO_ENTRYPOINT")"
@@ -31,9 +32,16 @@ source "$ELO_SCRIPT_DIR/lib/update.sh"
 source "$ELO_SCRIPT_DIR/lib/provider_modrinth.sh"
 # shellcheck source=lib/provider.sh
 source "$ELO_SCRIPT_DIR/lib/provider.sh"
+# shellcheck source=lib/interactive.sh
+source "$ELO_SCRIPT_DIR/lib/interactive.sh"
 
 main() {
-  local command="${1:-help}"
+  local command
+  if (($# == 0)); then
+    elo_ui_run
+    return
+  fi
+  command="$1"
   if (($# > 0)); then
     shift
   fi

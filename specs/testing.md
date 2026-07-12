@@ -4,7 +4,8 @@
 symlinks, active-instance removal, paths with spaces, help, and confirmations.
 `tests/test_install.sh` covers isolated installation, latest-stable updates,
 exact pre-release updates, and two-release retention with a local fake GitHub
-transport.
+transport. It also verifies private Gum installation, legacy global-Gum
+preservation, and self-uninstallation.
 
 Tests must use temporary `ELO_HOME` and `.minecraft` roots, remain offline, and
 clean only their own temporary data.

@@ -16,6 +16,7 @@ The MVP supports:
 - interactive confirmation for state-changing operations.
 - stable or version-selected self-updates.
 - Modrinth addon search, installation, registry listing, and removal.
+- a Gum-powered interactive interface with keyboard navigation.
 
 The current target platforms are Linux and macOS with Bash.
 
@@ -41,8 +42,17 @@ After installation:
 
 ```bash
 elo init --minecraft-path "$HOME/.minecraft"
+elo
 elo --help
 ```
+
+Running `elo` without arguments opens the interactive interface. The Elo
+installer provisions a user-local copy of
+[`gum`](https://github.com/charmbracelet/gum), copying an existing executable or
+downloading and verifying v0.17.0. The copy remains private under Elo's tools
+directory and is never exposed as a global `gum` command. The installer never
+uses `sudo` or changes the system package manager. Direct commands remain usable
+independently of the interactive interface.
 
 Update to the latest stable release, or select an exact release (including a
 pre-release):
@@ -55,30 +65,39 @@ elo update --version v1.2.0-rc.1
 After a successful update, Elo keeps the active and immediately previous
 releases and removes older managed releases.
 
+Uninstall Elo while preserving instances and downloaded content:
+
+```bash
+elo uninstall
+```
+
+Use `elo uninstall --purge` only to permanently delete all data under
+`~/.elo` as well. Both forms restore original Minecraft directories first.
+
 ## Development
 
 ```bash
 ./elo.sh help
 ./elo.sh init --minecraft-path "$HOME/.minecraft"
-./elo.sh new fabric-1_21 --version 1.21 --loader fabric
-./elo.sh link fabric-1_21
+./elo.sh instances create fabric-1_21 --version 1.21 --loader fabric
+./elo.sh instances activate fabric-1_21
 ./elo.sh status
-./elo.sh search sodium --type mod --instance fabric-1_21
-./elo.sh provider set modrinth --yes
-./elo.sh install fabric-1_21 sodium --yes
-./elo.sh addons fabric-1_21
-./elo.sh adopt fabric-1_21 mods/manual-addon.jar --yes
-./elo.sh uninstall fabric-1_21 --file mods/manual-addon.jar --yes
-./elo.sh reset
+./elo.sh addons search sodium --type mod --instance fabric-1_21
+./elo.sh addons provider set modrinth --yes
+./elo.sh addons install fabric-1_21 sodium --yes
+./elo.sh addons list fabric-1_21
+./elo.sh addons adopt fabric-1_21 mods/manual-addon.jar --yes
+./elo.sh addons remove fabric-1_21 --file mods/manual-addon.jar --yes
+./elo.sh instances reset
 ```
 
 Preview required dependencies without changing files:
 
 ```bash
-./elo.sh install fabric-1_21 sodium --dry-run
+./elo.sh addons install fabric-1_21 sodium --dry-run
 ```
 
-`uninstall --remove-orphans` offers cleanup based on required dependency edges
+`addons remove --remove-orphans` offers cleanup based on required dependency edges
 known to Elo. Review its list: optional relationships and external addon usage
 cannot always be inferred.
 
@@ -86,8 +105,8 @@ Use command-specific help for required fields, defaults, and risks:
 
 ```bash
 ./elo.sh --help
-./elo.sh help link
-./elo.sh reset --help
+./elo.sh help instances activate
+./elo.sh instances reset --help
 ```
 
 Set `ELO_HOME` to isolate data during development or testing.
@@ -103,8 +122,10 @@ lib/config.sh          config.conf and state.conf persistence
 lib/instance.sh        instance lifecycle
 lib/link.sh            symlinks, backup, switch, reset, and status
 lib/update.sh          stable and version-selected self-updates
+lib/self.sh            safe self-uninstallation
 lib/provider.sh        provider routing and addon lifecycle
 lib/provider_modrinth.sh public Modrinth API integration
+lib/interactive.sh     Gum-powered interactive interface
 tests/test_elo.sh      instance-management integration tests
 tests/test_install.sh  isolated installer integration test
 tests/test_provider.sh offline provider integration tests

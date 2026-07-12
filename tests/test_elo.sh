@@ -55,20 +55,20 @@ test_instance_lifecycle() {
   mkdir -p -- "$MINECRAFT_PATH/mods"
   printf 'original\n' >"$MINECRAFT_PATH/mods/original.txt"
 
-  "$ELO" new alpha --version 1.20.1 --loader fabric >/dev/null
-  "$ELO" new beta --version 1.21 --loader neoforge >/dev/null
+  "$ELO" instances create alpha --version 1.20.1 --loader fabric >/dev/null
+  "$ELO" instances create beta --version 1.21 --loader neoforge >/dev/null
   printf 'alpha\n' >"$ELO_HOME/instances/alpha/mods/alpha.txt"
   printf 'beta\n' >"$ELO_HOME/instances/beta/mods/beta.txt"
 
-  output="$("$ELO" list)"
+  output="$("$ELO" instances list)"
   assert_contains "$output" "alpha"
   assert_contains "$output" "1.20.1"
 
-  "$ELO" link alpha --yes >/dev/null
+  "$ELO" instances activate alpha --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
 
-  "$ELO" switch beta --yes >/dev/null
+  "$ELO" instances activate beta --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/beta/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
 
@@ -76,7 +76,7 @@ test_instance_lifecycle() {
   assert_contains "$output" "Active instance: beta"
   assert_contains "$output" "backed_up"
 
-  "$ELO" reset --yes >/dev/null
+  "$ELO" instances reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
   [[ ! -L "$MINECRAFT_PATH/mods" ]] || fail "mods should no longer be a symlink"
   assert_absent "$MINECRAFT_PATH/resourcepacks"
@@ -88,13 +88,13 @@ test_replace_mode() {
   setup_environment replace
   mkdir -p -- "$MINECRAFT_PATH/config"
   printf 'original\n' >"$MINECRAFT_PATH/config/options.txt"
-  "$ELO" new replace-test >/dev/null
+  "$ELO" instances create replace-test >/dev/null
 
-  "$ELO" link replace-test --mode replace --yes >/dev/null
+  "$ELO" instances activate replace-test --mode replace --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/config" "$ELO_HOME/instances/replace-test/config"
   assert_absent "$ELO_HOME/backups/original/config.bak"
 
-  "$ELO" reset --yes >/dev/null
+  "$ELO" instances reset --yes >/dev/null
   assert_absent "$MINECRAFT_PATH/config"
 
   pass "replace mode does not create unavailable restoration data"
@@ -105,9 +105,9 @@ test_foreign_symlink_is_protected() {
   setup_environment foreign-link
   mkdir -p -- "$foreign"
   ln -s -- "$foreign" "$MINECRAFT_PATH/mods"
-  "$ELO" new alpha >/dev/null
+  "$ELO" instances create alpha >/dev/null
 
-  if "$ELO" link alpha --yes >/dev/null 2>&1; then
+  if "$ELO" instances activate alpha --yes >/dev/null 2>&1; then
     fail "external symlink should prevent activation"
   fi
   assert_link_target "$MINECRAFT_PATH/mods" "$foreign"
@@ -117,13 +117,13 @@ test_foreign_symlink_is_protected() {
 
 test_remove_requires_reset() {
   setup_environment remove
-  "$ELO" new alpha >/dev/null
-  "$ELO" link alpha --yes >/dev/null
+  "$ELO" instances create alpha >/dev/null
+  "$ELO" instances activate alpha --yes >/dev/null
 
-  if "$ELO" remove alpha --yes >/dev/null 2>&1; then
+  if "$ELO" instances remove alpha --yes >/dev/null 2>&1; then
     fail "active instance should not be removed without --reset"
   fi
-  "$ELO" remove alpha --reset --yes >/dev/null
+  "$ELO" instances remove alpha --reset --yes >/dev/null
   assert_absent "$ELO_HOME/instances/alpha"
 
   pass "removing an active instance requires reset"
@@ -133,11 +133,11 @@ test_paths_with_spaces() {
   setup_environment "paths with spaces"
   mkdir -p -- "$MINECRAFT_PATH/mods"
   printf 'original\n' >"$MINECRAFT_PATH/mods/original.txt"
-  "$ELO" new alpha >/dev/null
+  "$ELO" instances create alpha >/dev/null
 
-  "$ELO" link alpha --yes >/dev/null
+  "$ELO" instances activate alpha --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
-  "$ELO" reset --yes >/dev/null
+  "$ELO" instances reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
 
   pass "paths containing spaces are preserved"
@@ -150,41 +150,74 @@ test_help_is_explicit() {
   assert_contains "$output" "<value>  required"
   assert_contains "$output" "[value]  optional"
   assert_contains "$output" "elo help <command>"
+  assert_contains "$output" "interactive interface"
 
-  output="$("$ELO" new --help)"
-  assert_contains "$output" "Required fields:"
-  assert_contains "$output" "Optional fields:"
-  assert_contains "$output" "<instance-name>"
-  assert_contains "$output" "Default: vanilla"
+  output="$("$ELO" instances create --help)"
+  assert_contains "$output" "<name>"
+  assert_contains "$output" "vanilla"
 
-  output="$("$ELO" help link)"
+  output="$("$ELO" help instances activate)"
   assert_contains "$output" "backup"
   assert_contains "$output" "replace"
-  assert_contains "$output" "Permanently remove"
+  assert_contains "$output" "permanently removes"
 
   output="$("$ELO" help update)"
-  assert_contains "$output" "latest stable GitHub release"
-  assert_contains "$output" "Pre-releases"
+  assert_contains "$output" "latest stable"
+  assert_contains "$output" "exact SemVer"
   assert_contains "$output" "--version <version>"
 
   pass "help distinguishes fields and explains effects"
 }
 
+test_legacy_commands_are_removed() {
+  local output
+
+  if output="$("$ELO" new alpha 2>&1)"; then
+    fail "legacy instance command should be rejected"
+  fi
+  assert_contains "$output" "Unknown command: new"
+  if output="$("$ELO" install alpha sodium 2>&1)"; then
+    fail "legacy addon command should be rejected"
+  fi
+  assert_contains "$output" "Unknown command: install"
+  if output="$("$ELO" uninstall alpha sodium 2>&1)"; then
+    fail "root uninstall should never accept addon arguments"
+  fi
+  assert_contains "$output" "Usage: elo uninstall"
+  if output="$("$ELO" uninstall --yes 2>&1)"; then
+    fail "self-uninstall should refuse a source checkout"
+  fi
+  assert_contains "$output" "only from an installed Elo release"
+
+  pass "legacy flat commands are rejected"
+}
+
+test_interactive_mode_requires_terminal() {
+  local output
+
+  if output="$("$ELO" 2>&1)"; then
+    fail "interactive mode should refuse non-terminal input"
+  fi
+  assert_contains "$output" "Interactive mode requires a terminal"
+
+  pass "no-argument mode is reserved for an interactive terminal"
+}
+
 test_confirmation_is_required() {
   setup_environment confirmation
-  "$ELO" new alpha >/dev/null
+  "$ELO" instances create alpha >/dev/null
 
-  if "$ELO" link alpha >/dev/null 2>&1; then
+  if "$ELO" instances activate alpha >/dev/null 2>&1; then
     fail "non-interactive activation should require --yes"
   fi
   assert_absent "$MINECRAFT_PATH/mods"
 
-  "$ELO" link alpha --yes >/dev/null
-  if "$ELO" reset >/dev/null 2>&1; then
+  "$ELO" instances activate alpha --yes >/dev/null
+  if "$ELO" instances reset >/dev/null 2>&1; then
     fail "non-interactive reset should require --yes"
   fi
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
-  "$ELO" reset --yes >/dev/null
+  "$ELO" instances reset --yes >/dev/null
 
   pass "state-changing operations require confirmation"
 }
@@ -196,5 +229,7 @@ test_remove_requires_reset
 test_paths_with_spaces
 test_help_is_explicit
 test_confirmation_is_required
+test_interactive_mode_requires_terminal
+test_legacy_commands_are_removed
 
 printf '1..%d\n' "$pass_count"

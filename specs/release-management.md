@@ -19,6 +19,23 @@ fix/* ─────┴─ squash merge ─> develop
 
 Temporary branches must not receive version tags.
 
+## LLM task branches
+
+Before modifying files or preparing a commit for a new task, every LLM MUST
+inspect the current branch. When it is `develop`, the LLM MUST create a new,
+English-named task branch from local `develop`:
+
+```bash
+git switch -c <type>/<short-task-name> develop
+```
+
+Use an appropriate prefix such as `feature/`, `fix/`, or `docs/`. If the
+current branch is not `develop`, the LLM MUST ask the user what to do before
+switching, rebasing, or editing. It must not silently reuse the current branch
+or infer permission to return to `develop`. Release and hotfix work that needs
+a different base therefore requires explicit user direction before the LLM
+changes repository state.
+
 ## Versioning
 
 Use `vMAJOR.MINOR.PATCH`. PATCH fixes compatibility, MINOR adds compatible

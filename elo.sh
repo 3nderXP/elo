@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ELO_ENTRYPOINT="${BASH_SOURCE[0]}"
+ELO_COMMAND_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
 while [[ -L "$ELO_ENTRYPOINT" ]]; do
   ELO_ENTRYPOINT_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
   ELO_LINK_TARGET="$(readlink "$ELO_ENTRYPOINT")"
@@ -27,39 +28,76 @@ source "$ELO_SCRIPT_DIR/lib/instance.sh"
 source "$ELO_SCRIPT_DIR/lib/link.sh"
 # shellcheck source=lib/update.sh
 source "$ELO_SCRIPT_DIR/lib/update.sh"
+# shellcheck source=lib/self.sh
+source "$ELO_SCRIPT_DIR/lib/self.sh"
 # shellcheck source=lib/provider_modrinth.sh
 source "$ELO_SCRIPT_DIR/lib/provider_modrinth.sh"
 # shellcheck source=lib/provider.sh
 source "$ELO_SCRIPT_DIR/lib/provider.sh"
+# shellcheck source=lib/interactive.sh
+source "$ELO_SCRIPT_DIR/lib/interactive.sh"
+
+elo_dispatch_instances() {
+  local action="${1:-}"
+  [[ -n "$action" ]] && shift
+  if [[ "$action" != "help" && ("${1:-}" == "--help" || "${1:-}" == "-h") ]]; then
+    elo_help_instances "$action"
+    return
+  fi
+  case "$action" in
+    create) elo_cmd_new "$@" ;;
+    activate) elo_cmd_link "$@" ;;
+    reset) elo_cmd_reset "$@" ;;
+    list) elo_cmd_list "$@" ;;
+    remove) elo_cmd_remove "$@" ;;
+    help | --help | -h | "") elo_help_instances "${1:-}" ;;
+    *) elo_error "Unknown instances command: $action"; elo_help_instances >&2; return 2 ;;
+  esac
+}
+
+elo_dispatch_addons() {
+  local action="${1:-}"
+  [[ -n "$action" ]] && shift
+  if [[ "$action" != "help" && ("${1:-}" == "--help" || "${1:-}" == "-h") ]]; then
+    elo_help_addons "$action"
+    return
+  fi
+  case "$action" in
+    search) elo_cmd_search "$@" ;;
+    install) elo_cmd_install "$@" ;;
+    list) elo_cmd_addons_list "$@" ;;
+    adopt) elo_cmd_adopt "$@" ;;
+    remove) elo_cmd_addon_remove "$@" ;;
+    provider) elo_cmd_provider "$@" ;;
+    help | --help | -h | "") elo_help_addons "${1:-}" ;;
+    *) elo_error "Unknown addons command: $action"; elo_help_addons >&2; return 2 ;;
+  esac
+}
 
 main() {
-  local command="${1:-help}"
+  local command
+  if (($# == 0)); then
+    elo_ui_run
+    return
+  fi
+  command="$1"
   if (($# > 0)); then
     shift
   fi
 
-  if [[ "$command" != "help" && ("${1:-}" == "--help" || "${1:-}" == "-h") ]]; then
+  if [[ "$command" != "help" && "$command" != "instances" && "$command" != "addons" && ("${1:-}" == "--help" || "${1:-}" == "-h") ]]; then
     elo_help_command "$command"
     return
   fi
 
   case "$command" in
     init) elo_cmd_init "$@" ;;
-    new) elo_cmd_new "$@" ;;
-    link) elo_cmd_link "$@" ;;
-    switch) elo_cmd_switch "$@" ;;
-    reset) elo_cmd_reset "$@" ;;
-    list) elo_cmd_list "$@" ;;
+    instances) elo_dispatch_instances "$@" ;;
+    addons) elo_dispatch_addons "$@" ;;
     status) elo_cmd_status "$@" ;;
-    remove) elo_cmd_remove "$@" ;;
     update) elo_cmd_update "$@" ;;
-    provider) elo_cmd_provider "$@" ;;
-    search) elo_cmd_search "$@" ;;
-    install) elo_cmd_install "$@" ;;
-    addons) elo_cmd_addons "$@" ;;
-    adopt) elo_cmd_adopt "$@" ;;
     uninstall) elo_cmd_uninstall "$@" ;;
-    help) elo_help_command "${1:-}" ;;
+    help) elo_help_command "$@" ;;
     --help | -h) elo_help_general ;;
     *)
       elo_error "Unknown command: $command"

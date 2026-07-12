@@ -9,14 +9,17 @@ Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 
 ## Required preparation
 
-1. Read `specs/README.md`.
-2. Read every reference in this skill:
+1. Inspect the current Git branch before changing files. If it is `develop`,
+   create a new task branch with `git switch -c <type>/<task> develop`. If it is
+   not `develop`, stop and ask the user how to proceed.
+2. Read `specs/README.md`.
+3. Read every reference in this skill:
    - [Bash and shell](references/bash.md)
    - [Minecraft domain](references/minecraft.md)
    - [Filesystem safety](references/filesystem-safety.md)
    - [Testing](references/testing.md)
-3. Read the area-specific specs.
-4. Inspect existing code before introducing abstractions.
+4. Read the area-specific specs.
+5. Inspect existing code before introducing abstractions.
 
 ## Workflow
 
@@ -38,3 +41,5 @@ Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 - Keep CLI parsing separate from filesystem logic.
 - Never access real user data in tests.
 - Keep all tracked project text in English.
+- Never begin a task on `develop`; create its branch first. Never change away
+  from another current branch without the user's decision.

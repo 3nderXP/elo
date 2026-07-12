@@ -17,9 +17,40 @@ elo_die() {
   return 1
 }
 
+elo_gum_command() {
+  local releases root config key value candidate gum_path
+  releases="$(dirname -- "${ELO_SCRIPT_DIR:-.}")"
+  if [[ "$(basename -- "$releases")" == "releases" ]]; then
+    root="$(dirname -- "$releases")"
+    config="$root/install.conf"
+    if [[ -f "$config" ]]; then
+      while IFS='=' read -r key value; do
+        [[ "$key" == "GUM_PATH" ]] || continue
+        case "$value" in
+          "$root"/tools/gum-*/gum)
+            if [[ -x "$value" && ! -L "$value" ]]; then
+              printf '%s\n' "$value"
+              return 0
+            fi
+            ;;
+        esac
+      done <"$config"
+    fi
+    for candidate in "$root"/tools/gum-*/gum; do
+      if [[ -x "$candidate" && ! -L "$candidate" ]]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done
+  fi
+  gum_path="$(command -v gum || true)"
+  [[ -n "$gum_path" ]] || return 1
+  printf '%s\n' "$gum_path"
+}
+
 elo_confirm() {
   local prompt="$1"
-  local answer
+  local answer gum_command
 
   if [[ "${ELO_ASSUME_YES:-0}" == "1" ]]; then
     return 0
@@ -28,6 +59,12 @@ elo_confirm() {
   if [[ ! -t 0 ]]; then
     elo_die "$prompt Use --yes for non-interactive execution."
     return 1
+  fi
+
+  gum_command="$(elo_gum_command || true)"
+  if [[ -n "$gum_command" ]]; then
+    "$gum_command" confirm --prompt.foreground 212 --selected.background 212 "$prompt"
+    return
   fi
 
   read -r -p "$prompt [y/N] " answer

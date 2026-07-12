@@ -58,7 +58,7 @@ output="$("$COMMAND" --help)"
 [[ "$output" == *"Elo — Minecraft instance manager"* ]] ||
   fail "the installed command did not display help"
 
-ELO_HOME="$TEST_ROOT/data" "$COMMAND" help link >/dev/null
+ELO_HOME="$TEST_ROOT/data" "$COMMAND" help instances activate >/dev/null
 
 first_release="$(readlink "$INSTALL_DIR/current")"
 "$PROJECT_DIR/install.sh" \
@@ -148,6 +148,25 @@ assert_release_count 2
 
 printf 'ok 3 - update accepts a pre-release and retains two releases\n'
 
+SELF_HOME="$TEST_ROOT/self-data"
+SELF_MINECRAFT="$TEST_ROOT/self-minecraft"
+mkdir -p "$SELF_MINECRAFT/mods"
+printf 'original\n' >"$SELF_MINECRAFT/mods/original.txt"
+ELO_HOME="$SELF_HOME" "$COMMAND" init --minecraft-path "$SELF_MINECRAFT" >/dev/null
+ELO_HOME="$SELF_HOME" "$COMMAND" instances create alpha >/dev/null
+ELO_HOME="$SELF_HOME" "$COMMAND" instances activate alpha --yes >/dev/null
+ELO_HOME="$SELF_HOME" "$COMMAND" uninstall --yes >/dev/null
+[[ ! -e "$COMMAND" && ! -L "$COMMAND" ]] ||
+  fail "self-uninstall should remove the Elo command"
+[[ -d "$SELF_HOME/instances/alpha" ]] ||
+  fail "self-uninstall should preserve instance data by default"
+[[ -f "$SELF_MINECRAFT/mods/original.txt" ]] ||
+  fail "self-uninstall should restore original Minecraft directories"
+[[ -x "$FAKE_BIN/gum" ]] ||
+  fail "self-uninstall should preserve externally supplied Gum"
+
+printf 'ok 4 - self-uninstall restores links and preserves data by default\n'
+
 GUM_ROOT="$TEST_ROOT/gum-install"
 GUM_BIN="$GUM_ROOT/bin"
 GUM_FAKE_BIN="$GUM_ROOT/fake-bin"
@@ -196,10 +215,32 @@ chmod +x "$GUM_FAKE_BIN/curl"
 PATH="$GUM_FAKE_BIN:$SYSTEM_PATH" ELO_GUM_FORCE_INSTALL=1 \
   "$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
   --install-dir "$GUM_INSTALL_DIR" --bin-dir "$GUM_BIN" >/dev/null
-[[ -L "$GUM_BIN/gum" && -x "$GUM_BIN/gum" ]] ||
-  fail "installer should create a working Gum command"
-[[ "$("$GUM_BIN/gum")" == "gum test fixture" ]] ||
+GUM_PRIVATE="$(awk -F= '$1 == "GUM_PATH" { print $2 }' "$GUM_INSTALL_DIR/install.conf")"
+[[ -f "$GUM_PRIVATE" && ! -L "$GUM_PRIVATE" && -x "$GUM_PRIVATE" ]] ||
+  fail "installer should create a private Gum executable"
+[[ ! -e "$GUM_BIN/gum" && ! -L "$GUM_BIN/gum" ]] ||
+  fail "installer should not expose Gum as a global command"
+[[ "$("$GUM_PRIVATE")" == "gum test fixture" ]] ||
   fail "installed Gum command should execute the verified artifact"
 
-printf 'ok 4 - installer downloads and verifies Gum in user space\n'
-printf '1..4\n'
+printf 'ok 5 - installer downloads and verifies Gum in user space\n'
+
+mkdir -p "$GUM_ROOT/data"
+mkdir -p "$GUM_ROOT/minecraft"
+ELO_HOME="$GUM_ROOT/data" "$GUM_BIN/elo" init \
+  --minecraft-path "$GUM_ROOT/minecraft" >/dev/null
+ln -s "$GUM_PRIVATE" "$GUM_BIN/gum"
+ELO_HOME="$GUM_ROOT/data" "$GUM_BIN/elo" uninstall --purge --yes >/dev/null
+[[ ! -e "$GUM_BIN/elo" && ! -L "$GUM_BIN/elo" ]] ||
+  fail "self-uninstall should remove the Elo command"
+[[ -f "$GUM_BIN/gum" && ! -L "$GUM_BIN/gum" && -x "$GUM_BIN/gum" ]] ||
+  fail "self-uninstall should preserve a legacy global Gum command"
+[[ "$("$GUM_BIN/gum")" == "gum test fixture" ]] ||
+  fail "preserved legacy Gum should remain functional"
+[[ ! -e "$GUM_INSTALL_DIR" ]] ||
+  fail "self-uninstall should remove the installation root"
+[[ ! -e "$GUM_ROOT/data" ]] ||
+  fail "self-uninstall --purge should remove ELO_HOME"
+
+printf 'ok 6 - purge removes private Gum and preserves legacy global Gum\n'
+printf '1..6\n'

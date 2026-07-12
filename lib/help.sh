@@ -21,40 +21,30 @@ Usage:
   elo
   elo <command> [options]
 
-Run without a command to open the Gum-powered interactive interface.
-Direct commands remain available for scripts and quick operations.
-
 Commands:
-  init      Configure the .minecraft directory to manage
-  new       Create an empty instance
-  link      Activate an instance and create its symlinks
-  switch    Switch the active instance
-  reset     Remove managed symlinks and restore original directories
-  list      List existing instances
-  status    Diagnose the current managed state
-  remove    Permanently remove an instance
-  update    Install a stable or selected Elo release
-  provider  Show or change the preferred addon provider
-  search    Search addons from a provider
-  install   Install an addon and required dependencies
-  addons    List addons installed in an instance
-  adopt     Add an external addon file to Elo management
-  uninstall Remove one managed addon
-  help      Show general or command-specific help
+  init        Configure the .minecraft directory to manage
+  instances   Create, activate, list, reset, or remove instances
+  addons      Search, install, list, adopt, or remove addons
+  status      Diagnose the current managed state
+  update      Install a stable or selected Elo release
+  uninstall   Uninstall Elo and optionally delete its data
+  help        Show general or command-specific help
+
+Run without a command to open the Gum-powered interactive interface.
 
 Getting started:
   elo init --minecraft-path "$HOME/.minecraft"
-  elo new fabric-1_21 --version 1.21 --loader fabric
-  elo link fabric-1_21
+  elo instances create fabric-1_21 --version 1.21 --loader fabric
+  elo instances activate fabric-1_21
+  elo addons install fabric-1_21 sodium
   elo status
-  elo reset
 
 Detailed help:
-  elo help <command>
-  elo <command> --help
+  elo help <command> [subcommand]
+  elo <command> help [subcommand]
 
 Safety:
-  The default link mode backs up original directories.
+  Activation backs up original directories by default.
   Destructive or state-changing operations require confirmation.
   Use --yes only for deliberate non-interactive execution.
 EOF
@@ -65,109 +55,175 @@ elo_help_init() {
 Usage:
   elo init --minecraft-path <path>
 
-Initialize Elo and select the Minecraft directory to manage.
-This command does not move any Minecraft files.
-
-Required fields:
-  --minecraft-path <path>
-      An existing .minecraft directory. Paths containing spaces are accepted.
-
-Example:
-  elo init --minecraft-path "$HOME/.minecraft"
+Initialize Elo with an existing .minecraft directory. No files are moved.
 EOF
 }
 
-elo_help_new() {
+elo_help_instances() {
+  local action="${1:-}"
+  case "$action" in
+    create) elo_help_instances_create ;;
+    activate) elo_help_instances_activate ;;
+    reset) elo_help_instances_reset ;;
+    list) elo_help_instances_list ;;
+    remove) elo_help_instances_remove ;;
+    "") cat <<'EOF'
+Usage:
+  elo instances <command> [options]
+
+Commands:
+  create     Create an empty instance
+  activate   Activate or switch to an instance
+  reset      Stop management and restore original directories
+  list       List existing instances
+  remove     Permanently remove an instance
+
+Detailed help:
+  elo help instances <command>
+  elo instances <command> --help
+EOF
+      ;;
+    *) elo_error "No help is available for instances command: $action"; return 2 ;;
+  esac
+}
+
+elo_help_instances_create() {
   cat <<'EOF'
 Usage:
-  elo new <instance-name> [--version <version>] [--loader <loader>]
+  elo instances create <name> [--version <version>] [--loader <loader>]
 
-Create an instance with mods, resourcepacks, shaderpacks, and config folders.
-
-Required fields:
-  <instance-name>
-      Unique identifier containing only letters, numbers, "_" and "-".
-
-Optional fields:
-  --version <version>
-      Informational Minecraft version. Default: unknown.
-  --loader <loader>
-      Informational loader such as fabric, forge, or neoforge. Default: vanilla.
-
-Example:
-  elo new fabric-1_21 --version 1.21 --loader fabric
+Create an instance. Names accept letters, numbers, "_", and "-".
+Version defaults to "unknown" and loader defaults to "vanilla".
 EOF
 }
 
-elo_help_link() {
+elo_help_instances_activate() {
   cat <<'EOF'
 Usage:
-  elo link <instance-name> [--mode <mode>] [--yes]
+  elo instances activate <name> [--mode backup|replace] [--yes]
 
-Activate an instance by linking .minecraft folders to it.
-
-Required fields:
-  <instance-name>
-      Name of an existing instance.
-
-Optional fields:
-  --mode <mode>
-      backup   Preserve real directories before linking. Default.
-      replace  Permanently remove real directories after confirmation.
-  --yes
-      Confirm every prompt. Use only for deliberate automation.
-
-Examples:
-  elo link fabric-1_21
-  elo link clean-test --mode replace
+Activate an instance or switch from the current one. Backup mode preserves
+original directories and is the default. Replace mode permanently removes
+real destination directories after confirmation.
 EOF
 }
 
-elo_help_switch() {
+elo_help_instances_reset() {
   cat <<'EOF'
 Usage:
-  elo switch <instance-name> [--yes]
+  elo instances reset [--yes]
 
-Switch managed symlinks from the active instance to another instance.
-The original backup remains unchanged.
-
-Required fields:
-  <instance-name>
-      Name of the instance to activate.
-
-Optional fields:
-  --yes
-      Confirm the switch without an interactive prompt.
-
-Example:
-  elo switch vanilla-1_21
+Remove Elo-owned links and restore preserved original directories.
+Data previously removed by replace mode cannot be restored.
 EOF
 }
 
-elo_help_reset() {
+elo_help_instances_list() {
   cat <<'EOF'
 Usage:
-  elo reset [--yes]
+  elo instances list
 
-Stop managing the current instance, remove Elo-owned symlinks, and restore
-the real directories preserved in the original backup.
-
-Optional fields:
-  --yes
-      Confirm the reset without an interactive prompt.
-
-Note:
-  Data previously removed with --mode replace cannot be restored.
+List every instance with its version, loader, and active status.
 EOF
 }
 
-elo_help_list() {
+elo_help_instances_remove() {
   cat <<'EOF'
 Usage:
-  elo list
+  elo instances remove <name> [--reset] [--yes]
 
-List every instance with its name, version, loader, and active status.
-This command has no fields and does not modify files.
+Permanently remove an instance and its contents. An active instance requires
+--reset so original Minecraft directories are restored first.
+EOF
+}
+
+elo_help_addons() {
+  local action="${1:-}"
+  case "$action" in
+    search) elo_help_addons_search ;;
+    install) elo_help_addons_install ;;
+    list) elo_help_addons_list ;;
+    adopt) elo_help_addons_adopt ;;
+    remove) elo_help_addons_remove ;;
+    provider) elo_help_addons_provider ;;
+    "") cat <<'EOF'
+Usage:
+  elo addons <command> [options]
+
+Commands:
+  search      Search provider projects
+  install     Install an addon and required dependencies
+  list        Scan addons installed in an instance
+  adopt       Add an external file to Elo management
+  remove      Remove an addon from an instance
+  provider    Show or change the preferred provider
+
+Detailed help:
+  elo help addons <command>
+  elo addons <command> --help
+EOF
+      ;;
+    *) elo_error "No help is available for addons command: $action"; return 2 ;;
+  esac
+}
+
+elo_help_addons_search() {
+  cat <<'EOF'
+Usage:
+  elo addons search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
+
+Search public provider projects. Types: mod, resourcepack, shader. When no
+instance is given, the active instance supplies version and loader filters.
+EOF
+}
+
+elo_help_addons_install() {
+  cat <<'EOF'
+Usage:
+  elo addons install <instance> <id-or-slug> [--provider <provider>] [--dry-run] [--yes]
+
+Resolve a compatible addon and required dependencies. Existing matching files
+are verified and reused; different content is never overwritten.
+EOF
+}
+
+elo_help_addons_list() {
+  cat <<'EOF'
+Usage:
+  elo addons list <instance>
+
+Report managed, modified, missing, and external addon files.
+EOF
+}
+
+elo_help_addons_adopt() {
+  cat <<'EOF'
+Usage:
+  elo addons adopt <instance> <relative-path> [--yes]
+
+Register an existing regular file directly inside mods, resourcepacks, or
+shaderpacks without moving or copying it.
+EOF
+}
+
+elo_help_addons_remove() {
+  cat <<'EOF'
+Usage:
+  elo addons remove <instance> <id-or-slug> [--provider <provider>] [--remove-orphans] [--yes]
+  elo addons remove <instance> --file <relative-path> [--remove-orphans] [--yes]
+
+Remove a verified managed addon. --file explicitly removes an exact external
+or modified file. --remove-orphans also offers unreachable dependencies.
+EOF
+}
+
+elo_help_addons_provider() {
+  cat <<'EOF'
+Usage:
+  elo addons provider [show|list]
+  elo addons provider set <provider> [--yes]
+
+Show, list, or change the preferred addon provider. Default: modrinth.
 EOF
 }
 
@@ -176,32 +232,7 @@ elo_help_status() {
 Usage:
   elo status
 
-Show the active instance and verify every managed symlink and backup.
-Exit with status 1 when a link is missing, broken, or divergent.
-This command has no fields and does not modify files.
-EOF
-}
-
-elo_help_remove() {
-  cat <<'EOF'
-Usage:
-  elo remove <instance-name> [--reset] [--yes]
-
-Permanently remove an instance and all content stored in it.
-
-Required fields:
-  <instance-name>
-      Name of the instance to remove.
-
-Optional fields:
-  --reset
-      Restore .minecraft first when the instance is active.
-  --yes
-      Confirm reset and removal without interactive prompts.
-
-Examples:
-  elo remove old-test
-  elo remove active-instance --reset
+Show the active instance and validate managed symlinks and backup state.
 EOF
 }
 
@@ -210,141 +241,41 @@ elo_help_update() {
 Usage:
   elo update [--version <version>] [--yes]
 
-Install and activate an Elo release. The previous release is retained for
-recovery, and older managed releases are removed after successful activation.
-By default, the latest stable GitHub release is selected.
-
-Optional fields:
-  --version <version>
-      Exact SemVer release to install. The leading "v" is optional.
-      Pre-releases such as v1.0.0-rc.1 are accepted.
-  --yes
-      Confirm the update without an interactive prompt.
-
-Examples:
-  elo update
-  elo update --version v1.2.0
-  elo update --version 2.0.0-rc.1 --yes
-EOF
-}
-
-elo_help_help() {
-  cat <<'EOF'
-Usage:
-  elo help [command]
-
-Without a command, show the overview. With a command, show its fields,
-defaults, effects, and examples.
-EOF
-}
-
-elo_help_search() {
-  cat <<'EOF'
-Usage:
-  elo search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
-
-Search public provider projects. Default: preferred provider. Default limit: 10.
-When an instance is selected, its Minecraft version and loader filter results.
-Types: mod, resourcepack, shader. Limit: 1 through 100.
-EOF
-}
-
-elo_help_install() {
-  cat <<'EOF'
-Usage:
-  elo install <instance-name> <id-or-slug> [--provider <provider>] [--dry-run] [--yes]
-
-Download a compatible addon and its required dependencies. Defaults to the
-preferred provider. Requires curl and jq. A matching existing file is verified,
-reused, and registered; different content is never overwritten.
-
-The required dependency plan is always shown before confirmation. Use
---dry-run to resolve and display the plan without downloading or changing files.
-EOF
-}
-
-elo_help_addons() {
-  cat <<'EOF'
-Usage:
-  elo addons <instance-name>
-
-Scan addon folders and report managed, modified, missing, and external files.
-Output uses a fixed 160-character table and truncates long values with "...".
-EOF
-}
-
-elo_help_provider() {
-  cat <<'EOF'
-Usage:
-  elo provider
-  elo provider show
-  elo provider list
-  elo provider set <provider> [--yes]
-
-Show, list, or change the preferred addon provider. Search, install, and
-identifier-based uninstall use this preference unless --provider overrides it.
-Default: modrinth.
-
-Example:
-  elo provider set modrinth --yes
-EOF
-}
-
-elo_help_adopt() {
-  cat <<'EOF'
-Usage:
-  elo adopt <instance-name> <relative-path> [--yes]
-
-Register an existing external file without moving or copying it. The path must
-be directly inside mods, resourcepacks, or shaderpacks. Elo stores its current
-SHA-512 and reports later changes as modified.
-
-Example:
-  elo adopt fabric-1_21 mods/manual-addon.jar --yes
+Install and activate the latest stable or an exact SemVer Elo release.
 EOF
 }
 
 elo_help_uninstall() {
   cat <<'EOF'
 Usage:
-  elo uninstall <instance-name> <id-or-slug> [--provider <provider>] [--remove-orphans] [--yes]
-  elo uninstall <instance-name> --file <relative-path> [--remove-orphans] [--yes]
+  elo uninstall [--purge] [--yes]
 
-Managed files are removed only when their SHA-512 hash still matches. Use
---file with an exact path such as mods/example.jar to explicitly remove an
-external or modified file. Paths must be directly inside mods, resourcepacks,
-or shaderpacks. Dependencies remain installed until explicitly removed.
-Use --remove-orphans to find dependencies unreachable from every remaining
-direct addon and offer verified removal. Review the list: optional or external
-usage may be unknown. Modified files are retained.
+Restore original Minecraft directories and uninstall Elo. Instance data under
+ELO_HOME is preserved by default. --purge permanently deletes that data too.
+Elo's private Gum copy is removed with the installation. A legacy global Gum
+command is preserved for other consumers. This command is available only from
+an installed Elo release.
+EOF
+}
+
+elo_help_help() {
+  cat <<'EOF'
+Usage:
+  elo help [command] [subcommand]
 EOF
 }
 
 elo_help_command() {
-  local command="${1:-}"
-
+  local command="${1:-}" action="${2:-}"
   case "$command" in
     "" | --help | -h) elo_help_general ;;
     init) elo_help_init ;;
-    new) elo_help_new ;;
-    link) elo_help_link ;;
-    switch) elo_help_switch ;;
-    reset) elo_help_reset ;;
-    list) elo_help_list ;;
+    instances) elo_help_instances "$action" ;;
+    addons) elo_help_addons "$action" ;;
     status) elo_help_status ;;
-    remove) elo_help_remove ;;
     update) elo_help_update ;;
-    provider) elo_help_provider ;;
-    search) elo_help_search ;;
-    install) elo_help_install ;;
-    addons) elo_help_addons ;;
-    adopt) elo_help_adopt ;;
     uninstall) elo_help_uninstall ;;
     help) elo_help_help ;;
-    *)
-      elo_error "No help is available for command: $command"
-      elo_help_general >&2
-      return 2
-      ;;
+    *) elo_error "No help is available for command: $command"; elo_help_general >&2; return 2 ;;
   esac
 }

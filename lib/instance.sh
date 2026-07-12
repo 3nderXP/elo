@@ -21,7 +21,7 @@ elo_cmd_new() {
 
   elo_require_initialized || return
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Usage: elo new <instance-name> [--version <version>] [--loader <loader>]"
+    elo_die "Usage: elo instances create <name> [--version <version>] [--loader <loader>]"
     return
   fi
   elo_validate_instance_name "$name" || return
@@ -96,7 +96,7 @@ elo_cmd_remove() {
 
   elo_require_initialized || return
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Usage: elo remove <instance-name> [--reset] [--yes]"
+    elo_die "Usage: elo instances remove <name> [--reset] [--yes]"
     return
   fi
   elo_require_instance "$name" || return
@@ -122,7 +122,7 @@ elo_cmd_remove() {
   active="$(elo_active_instance)"
   if [[ "$active" == "$name" ]]; then
     if [[ "$reset" != "1" ]]; then
-      elo_die "The instance is active. Run 'elo reset' or use --reset."
+      elo_die "The instance is active. Run 'elo instances reset' or use --reset."
       return
     fi
     elo_cmd_reset || return

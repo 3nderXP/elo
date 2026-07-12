@@ -9,6 +9,7 @@ lib/config.sh         configuration and state persistence
 lib/instance.sh       instance lifecycle
 lib/link.sh           symlinks, backup, activation, reset, status
 lib/update.sh         release selection and installer delegation
+lib/self.sh           installer-owned self-uninstallation
 lib/provider.sh       provider routing, addon registry, and lifecycle
 lib/provider_modrinth.sh Modrinth API requests and downloads
 lib/interactive.sh     Gum UI that delegates to existing command functions
@@ -20,9 +21,10 @@ command handlers use `elo_cmd_`. Sensitive filesystem operations belong in
 `.minecraft`.
 
 The installer writes `install.conf` under its installation root with the
-repository and command directory. The update command parses this file as data
-and delegates staged download, validation, and atomic activation to the target
-release's installer.
+repository, command directory, and private Gum path. Update and
+self-uninstall commands parse this file as data. The update command delegates
+staged download, validation, and atomic activation to the target release's
+installer.
 
 Provider modules implement `search`, `resolve`, `get_dependencies`, and
 `download` functions. The provider manager owns CLI behavior, recursive

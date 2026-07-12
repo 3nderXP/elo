@@ -36,17 +36,17 @@ elo_cmd_provider() {
   elo_require_initialized || return
   case "$action" in
     show)
-      (($# == 0 || $# == 1)) || { elo_die "Usage: elo provider show"; return; }
+      (($# == 0 || $# == 1)) || { elo_die "Usage: elo addons provider show"; return; }
       elo_info "Preferred provider: $(elo_preferred_provider)"
       ;;
     list)
-      (($# == 1)) || { elo_die "Usage: elo provider list"; return; }
+      (($# == 1)) || { elo_die "Usage: elo addons provider list"; return; }
       printf 'AVAILABLE PROVIDERS\n'
       elo_provider_available_names
       ;;
     set)
       provider="${2:-}"
-      [[ -n "$provider" ]] || { elo_die "Usage: elo provider set <provider> [--yes]"; return; }
+      [[ -n "$provider" ]] || { elo_die "Usage: elo addons provider set <provider> [--yes]"; return; }
       shift 2
       while (($# > 0)); do
         case "$1" in
@@ -62,7 +62,7 @@ elo_cmd_provider() {
       elo_config_set PREFERRED_PROVIDER "$provider"
       elo_info "Preferred provider: $provider"
       ;;
-    *) elo_die "Usage: elo provider show|list|set <provider> [--yes]"; return ;;
+    *) elo_die "Usage: elo addons provider show|list|set <provider> [--yes]"; return ;;
   esac
 }
 
@@ -191,7 +191,7 @@ elo_addon_table_row() {
 elo_cmd_search() {
   local query="${1:-}" type="" instance="" provider="" limit=10 version="" loader="" results
   elo_require_initialized || return
-  if [[ -z "$query" || "$query" == --* ]]; then elo_die "Usage: elo search <query> [options]"; return; fi
+  if [[ -z "$query" || "$query" == --* ]]; then elo_die "Usage: elo addons search <query> [options]"; return; fi
   shift
   while (($# > 0)); do
     case "$1" in
@@ -374,7 +374,7 @@ elo_addon_install_recursive() {
 elo_cmd_install() {
   local instance="${1:-}" addon="${2:-}" provider="" dry_run=0
   elo_require_initialized || return
-  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo install <instance-name> <id-or-slug> [--provider <provider>] [--yes]"; return; fi
+  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug> [options]"; return; fi
   elo_require_instance "$instance" || return
   shift 2
   while (($# > 0)); do
@@ -401,12 +401,12 @@ elo_cmd_install() {
   elo_addon_install_recursive "$instance" "$provider" "$addon" false
 }
 
-elo_cmd_addons() {
+elo_cmd_addons_list() {
   local instance="${1:-}" key file type filename target expected actual state directory entry entry_type
   elo_require_initialized || return
-  [[ -n "$instance" && "$instance" != --* ]] || { elo_die "Usage: elo addons <instance-name>"; return; }
+  [[ -n "$instance" && "$instance" != --* ]] || { elo_die "Usage: elo addons list <instance>"; return; }
   elo_require_instance "$instance" || return
-  (($# == 1)) || { elo_die "Usage: elo addons <instance-name>"; return; }
+  (($# == 1)) || { elo_die "Usage: elo addons list <instance>"; return; }
   file="$(elo_addon_registry "$instance")"
   elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
   printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
@@ -458,7 +458,7 @@ elo_cmd_adopt() {
   elo_require_initialized || return
   command -v jq >/dev/null 2>&1 || { elo_die "jq is required for addon registry commands."; return; }
   if [[ -z "$instance" || -z "$relative" || "$instance" == --* || "$relative" == --* ]]; then
-    elo_die "Usage: elo adopt <instance-name> <relative-path> [--yes]"
+    elo_die "Usage: elo addons adopt <instance> <relative-path> [--yes]"
     return
   fi
   elo_require_instance "$instance" || return
@@ -604,10 +604,10 @@ elo_addon_remove_orphans() {
   done <<<"$orphans"
 }
 
-elo_cmd_uninstall() {
+elo_cmd_addon_remove() {
   local instance="${1:-}" addon="" provider="" key="" file type filename target relative="" expected actual remove_orphans=0
   elo_require_initialized || return
-  if [[ -z "$instance" || "$instance" == --* ]]; then elo_die "Usage: elo uninstall <instance-name> <id-or-slug> [options]"; return; fi
+  if [[ -z "$instance" || "$instance" == --* ]]; then elo_die "Usage: elo addons remove <instance> <id-or-slug> [options]"; return; fi
   elo_require_instance "$instance" || return
   shift
   while (($# > 0)); do

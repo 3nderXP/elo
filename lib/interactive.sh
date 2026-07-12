@@ -81,14 +81,9 @@ elo_ui_new() {
 }
 
 elo_ui_activate() {
-  local instance active
+  local instance
   instance="$(elo_ui_select_instance "Select the instance to activate")" || return 0
-  active="$(elo_active_instance)"
-  if [[ -n "$active" ]]; then
-    elo_cmd_switch "$instance"
-  else
-    elo_cmd_link "$instance"
-  fi
+  elo_cmd_link "$instance"
 }
 
 elo_ui_install() {
@@ -102,7 +97,7 @@ elo_ui_install() {
 elo_ui_addons() {
   local instance
   instance="$(elo_ui_select_instance "Show addons from which instance?")" || return 0
-  elo_cmd_addons "$instance"
+  elo_cmd_addons_list "$instance"
 }
 
 elo_ui_uninstall() {
@@ -110,7 +105,7 @@ elo_ui_uninstall() {
   instance="$(elo_ui_select_instance "Remove an addon from which instance?")" || return 0
   addon="$(elo_ui_input "Managed addon ID or slug")" || return 0
   [[ -n "$addon" ]] || return 0
-  elo_cmd_uninstall "$instance" "$addon"
+  elo_cmd_addon_remove "$instance" "$addon"
 }
 
 elo_ui_remove_instance() {
@@ -132,9 +127,10 @@ elo_ui_run() {
     clear
     elo_ui_header
     if [[ ! -f "$ELO_CONFIG_FILE" ]]; then
-      action="$(elo_ui_choose "Initialize Elo" "Help" "Exit")" || return 0
+      action="$(elo_ui_choose "Initialize Elo" "Uninstall Elo" "Help" "Exit")" || return 0
       case "$action" in
         "Initialize Elo") elo_ui_init || true ;;
+        "Uninstall Elo") if elo_cmd_uninstall; then return 0; fi ;;
         Help) elo_help_general ;;
         Exit) return 0 ;;
       esac
@@ -142,7 +138,7 @@ elo_ui_run() {
       action="$(elo_ui_choose \
         "Switch instance" "Create instance" "Install addon" "View addons" \
         "Uninstall addon" "List instances" "Status" "Reset links" \
-        "Remove instance" "Update Elo" "Help" "Exit")" || return 0
+        "Remove instance" "Update Elo" "Uninstall Elo" "Help" "Exit")" || return 0
       case "$action" in
         "Switch instance") elo_ui_activate || true ;;
         "Create instance") elo_ui_new || true ;;
@@ -154,6 +150,7 @@ elo_ui_run() {
         "Reset links") elo_cmd_reset || true ;;
         "Remove instance") elo_ui_remove_instance || true ;;
         "Update Elo") elo_cmd_update || true ;;
+        "Uninstall Elo") if elo_cmd_uninstall; then return 0; fi ;;
         Help) elo_help_general ;;
         Exit) return 0 ;;
       esac

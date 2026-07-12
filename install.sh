@@ -11,6 +11,7 @@ ELO_INSTALL_STAGE=""
 ELO_GUM_VERSION="${ELO_GUM_VERSION:-0.17.0}"
 ELO_GUM_REPOSITORY="${ELO_GUM_REPOSITORY:-charmbracelet/gum}"
 ELO_GUM_FORCE_INSTALL="${ELO_GUM_FORCE_INSTALL:-0}"
+ELO_GUM_PATH=""
 
 ELO_INSTALL_FILES=(
   "elo.sh"
@@ -20,6 +21,7 @@ ELO_INSTALL_FILES=(
   "lib/instance.sh"
   "lib/link.sh"
   "lib/update.sh"
+  "lib/self.sh"
   "lib/provider_modrinth.sh"
   "lib/provider.sh"
   "lib/interactive.sh"
@@ -183,19 +185,26 @@ install_verify_sha256() {
 }
 
 install_gum() {
-  local platform asset base_url archive checksums expected destination temporary extracted gum_command
+  local platform asset base_url archive checksums expected destination temporary extracted existing_gum
 
-  if [[ "$ELO_GUM_FORCE_INSTALL" != "1" ]] && command -v gum >/dev/null 2>&1; then
-    install_info "Gum is already available: $(command -v gum)"
+  destination="$ELO_INSTALL_DIR/tools/gum-$ELO_GUM_VERSION"
+  ELO_GUM_PATH="$destination/gum"
+  if [[ "$ELO_GUM_FORCE_INSTALL" != "1" && -x "$ELO_GUM_PATH" && ! -L "$ELO_GUM_PATH" ]]; then
+    install_info "Reusing Elo's private Gum: $ELO_GUM_PATH"
     return
   fi
-  gum_command="$ELO_BIN_DIR/gum"
-  if [[ -e "$gum_command" || -L "$gum_command" ]]; then
-    if [[ "$ELO_GUM_FORCE_INSTALL" != "1" && -x "$gum_command" ]]; then
-      install_info "Gum is already installed at $gum_command"
+  if [[ -e "$ELO_GUM_PATH" || -L "$ELO_GUM_PATH" ]]; then
+    install_die "Path $ELO_GUM_PATH exists and will not be overwritten."
+  fi
+  if [[ "$ELO_GUM_FORCE_INSTALL" != "1" ]]; then
+    existing_gum="$(command -v gum || true)"
+    if [[ -n "$existing_gum" && -f "$existing_gum" && ! -L "$existing_gum" ]]; then
+      mkdir -p "$destination"
+      cp "$existing_gum" "$ELO_GUM_PATH"
+      chmod +x "$ELO_GUM_PATH"
+      install_info "Copied Gum into Elo's private tools directory."
       return
     fi
-    install_die "Path $gum_command exists and will not be overwritten."
   fi
   command -v curl >/dev/null 2>&1 || install_die "curl is required to install Gum."
   command -v tar >/dev/null 2>&1 || install_die "tar is required to install Gum."
@@ -223,19 +232,17 @@ install_gum() {
   [[ -f "$extracted" && ! -L "$extracted" ]] ||
     install_die "The Gum archive does not contain its expected executable."
 
-  destination="$ELO_INSTALL_DIR/tools/gum-$ELO_GUM_VERSION"
-  mkdir -p "$destination" "$ELO_BIN_DIR"
-  cp "$extracted" "$destination/gum"
-  chmod +x "$destination/gum"
-  ln -s "$destination/gum" "$gum_command"
-  install_info "Gum installed at $destination/gum"
+  mkdir -p "$destination"
+  cp "$extracted" "$ELO_GUM_PATH"
+  chmod +x "$ELO_GUM_PATH"
+  install_info "Gum installed privately at $ELO_GUM_PATH"
 }
 
 install_write_config() {
   local config="$ELO_INSTALL_DIR/install.conf"
   local temporary="$ELO_INSTALL_DIR/install.conf.tmp.$$"
 
-  case "$ELO_REPOSITORY$ELO_BIN_DIR" in
+  case "$ELO_REPOSITORY$ELO_BIN_DIR$ELO_GUM_PATH" in
     *'
 '*) install_die "Repository and installation paths cannot contain newlines." ;;
   esac
@@ -243,6 +250,7 @@ install_write_config() {
   {
     printf 'REPOSITORY=%s\n' "$ELO_REPOSITORY"
     printf 'BIN_DIR=%s\n' "$ELO_BIN_DIR"
+    printf 'GUM_PATH=%s\n' "$ELO_GUM_PATH"
   } >"$temporary"
   mv "$temporary" "$config"
 }

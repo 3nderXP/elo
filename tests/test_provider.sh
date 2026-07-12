@@ -49,37 +49,37 @@ EOF
 chmod +x "$TEST_ROOT/bin/curl"
 
 "$ELO" init --minecraft-path "$TEST_ROOT/minecraft" >/dev/null
-"$ELO" new fabric --version 1.21.1 --loader fabric >/dev/null
+"$ELO" instances create fabric --version 1.21.1 --loader fabric >/dev/null
 
-output="$("$ELO" provider)"
+output="$("$ELO" addons provider)"
 assert_contains "$output" "Preferred provider: modrinth"
-output="$("$ELO" provider list)"
+output="$("$ELO" addons provider list)"
 assert_contains "$output" "modrinth"
-"$ELO" provider set modrinth --yes >/dev/null
+"$ELO" addons provider set modrinth --yes >/dev/null
 assert_contains "$(cat "$ELO_HOME/config.conf")" "PREFERRED_PROVIDER=modrinth"
-if "$ELO" provider set unavailable --yes >/dev/null 2>&1; then
+if "$ELO" addons provider set unavailable --yes >/dev/null 2>&1; then
   fail "provider set should refuse an unavailable provider"
 fi
 
-output="$("$ELO" search sodium --type mod --instance fabric)"
+output="$("$ELO" addons search sodium --type mod --instance fabric)"
 assert_contains "$output" "sodium01"
 assert_contains "$output" "Sodium"
-output="$("$ELO" search no-results --type mod --instance fabric)"
+output="$("$ELO" addons search no-results --type mod --instance fabric)"
 assert_contains "$output" "info: No addons found."
 
 printf 'fixture addon\n' >"$ELO_HOME/instances/fabric/mods/fabric-api.jar"
-"$ELO" adopt fabric mods/fabric-api.jar --yes >/dev/null
-output="$("$ELO" install fabric sodium --dry-run)"
+"$ELO" addons adopt fabric mods/fabric-api.jar --yes >/dev/null
+output="$("$ELO" addons install fabric sodium --dry-run)"
 assert_contains "$output" "Installation plan for sodium in fabric:"
 assert_contains "$output" "Sodium"
 assert_contains "$output" "Fabric API"
 assert_contains "$output" "reuse verified"
 assert_absent "$ELO_HOME/instances/fabric/mods/sodium.jar"
-output="$("$ELO" install fabric sodium --yes 2>&1)"
+output="$("$ELO" addons install fabric sodium --yes 2>&1)"
 assert_contains "$output" "warning: Reusing existing verified addon file: fabric-api.jar"
 assert_file "$ELO_HOME/instances/fabric/mods/sodium.jar"
 assert_file "$ELO_HOME/instances/fabric/mods/fabric-api.jar"
-output="$("$ELO" addons fabric)"
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "Sodium"
 assert_contains "$output" "Fabric API"
 assert_contains "$output" "managed"
@@ -89,50 +89,50 @@ if grep -q 'local:.*fabric-api' "$ELO_HOME/instances/fabric/addons.conf"; then
 fi
 
 printf 'manual\n' >"$ELO_HOME/instances/fabric/mods/manual.jar"
-output="$("$ELO" addons fabric)"
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "manual.jar"
 assert_contains "$output" "external"
 printf 'long\n' >"$ELO_HOME/instances/fabric/mods/addon-with-a-name-that-is-much-too-long-for-the-table.jar"
-output="$("$ELO" addons fabric)"
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "..."
 if printf '%s\n' "$output" | awk 'length($0) > 160 { exit 1 }'; then :; else
   fail "addon table should not exceed 160 characters"
 fi
-"$ELO" adopt fabric mods/manual.jar --yes >/dev/null
-output="$("$ELO" addons fabric)"
+"$ELO" addons adopt fabric mods/manual.jar --yes >/dev/null
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "local:"
 assert_contains "$output" "managed"
-if "$ELO" adopt fabric mods/manual.jar --yes >/dev/null 2>&1; then
+if "$ELO" addons adopt fabric mods/manual.jar --yes >/dev/null 2>&1; then
   fail "adopt should refuse an already managed file"
 fi
 printf 'modified\n' >"$ELO_HOME/instances/fabric/mods/sodium.jar"
-output="$("$ELO" addons fabric)"
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "modified"
-if "$ELO" uninstall fabric sodium --yes >/dev/null 2>&1; then
+if "$ELO" addons remove fabric sodium --yes >/dev/null 2>&1; then
   fail "identifier uninstall should refuse a modified file"
 fi
-"$ELO" uninstall fabric --file mods/sodium.jar --yes >/dev/null 2>&1
+"$ELO" addons remove fabric --file mods/sodium.jar --yes >/dev/null 2>&1
 assert_absent "$ELO_HOME/instances/fabric/mods/sodium.jar"
-"$ELO" uninstall fabric --file mods/manual.jar --yes >/dev/null 2>&1
+"$ELO" addons remove fabric --file mods/manual.jar --yes >/dev/null 2>&1
 assert_absent "$ELO_HOME/instances/fabric/mods/manual.jar"
 
 assert_file "$ELO_HOME/instances/fabric/mods/fabric-api.jar"
 rm "$ELO_HOME/instances/fabric/mods/fabric-api.jar"
-output="$("$ELO" addons fabric)"
+output="$("$ELO" addons list fabric)"
 assert_contains "$output" "missing"
 
-"$ELO" new orphan --version 1.21.1 --loader fabric >/dev/null
-"$ELO" install orphan sodium --yes >/dev/null
-"$ELO" install orphan second --yes >/dev/null
+"$ELO" instances create orphan --version 1.21.1 --loader fabric >/dev/null
+"$ELO" addons install orphan sodium --yes >/dev/null
+"$ELO" addons install orphan second --yes >/dev/null
 assert_file "$ELO_HOME/instances/orphan/mods/sodium.jar"
 assert_file "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
-"$ELO" uninstall orphan sodium --remove-orphans --yes >/dev/null
+"$ELO" addons remove orphan sodium --remove-orphans --yes >/dev/null
 assert_absent "$ELO_HOME/instances/orphan/mods/sodium.jar"
 assert_file "$ELO_HOME/instances/orphan/mods/second.jar"
 assert_file "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
-"$ELO" uninstall orphan second --remove-orphans --yes >/dev/null
+"$ELO" addons remove orphan second --remove-orphans --yes >/dev/null
 assert_absent "$ELO_HOME/instances/orphan/mods/second.jar"
 assert_absent "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
 
-printf 'ok 1 - provider search, dependency install, registry, and safe uninstall\n'
+printf 'ok 1 - provider search, dependency install, registry, and safe removal\n'
 printf '1..1\n'

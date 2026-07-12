@@ -216,7 +216,7 @@ elo_cmd_link() {
   local name="${1:-}" mode="backup" active
 
   if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Usage: elo link <instance-name> [--mode backup|replace] [--yes]"
+    elo_die "Usage: elo instances activate <name> [--mode backup|replace] [--yes]"
     return
   fi
   shift
@@ -249,53 +249,6 @@ elo_cmd_link() {
   fi
 
   elo_activate_instance "$name" "$mode"
-}
-
-elo_cmd_switch() {
-  local name="${1:-}"
-  local active
-
-  if [[ -z "$name" || "$name" == --* ]]; then
-    elo_die "Usage: elo switch <instance-name> [--yes]"
-    return
-  fi
-  shift
-
-  while (($# > 0)); do
-    case "$1" in
-      --yes)
-        ELO_ASSUME_YES=1
-        shift
-        ;;
-      *)
-        elo_die "Invalid option for switch: $1"
-        return
-        ;;
-    esac
-  done
-
-  elo_require_initialized || return
-  elo_require_instance "$name" || return
-  active="$(elo_active_instance)"
-
-  if [[ "$active" == "$name" ]]; then
-    elo_info "Instance '$name' is already active."
-    return
-  fi
-
-  if [[ -n "$active" ]]; then
-    elo_confirm "Switch the active instance from '$active' to '$name'?" || {
-      elo_warn "Switch cancelled."
-      return 1
-    }
-  else
-    elo_confirm "No instance is active. Activate '$name'?" || {
-      elo_warn "Activation cancelled."
-      return 1
-    }
-  fi
-
-  elo_activate_instance "$name" backup
 }
 
 elo_cmd_reset() {

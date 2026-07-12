@@ -150,6 +150,7 @@ test_help_is_explicit() {
   assert_contains "$output" "<value>  required"
   assert_contains "$output" "[value]  optional"
   assert_contains "$output" "elo help <command>"
+  assert_contains "$output" "interactive interface"
 
   output="$("$ELO" new --help)"
   assert_contains "$output" "Required fields:"
@@ -168,6 +169,17 @@ test_help_is_explicit() {
   assert_contains "$output" "--version <version>"
 
   pass "help distinguishes fields and explains effects"
+}
+
+test_interactive_mode_requires_terminal() {
+  local output
+
+  if output="$("$ELO" 2>&1)"; then
+    fail "interactive mode should refuse non-terminal input"
+  fi
+  assert_contains "$output" "Interactive mode requires a terminal"
+
+  pass "no-argument mode is reserved for an interactive terminal"
 }
 
 test_confirmation_is_required() {
@@ -196,5 +208,6 @@ test_remove_requires_reset
 test_paths_with_spaces
 test_help_is_explicit
 test_confirmation_is_required
+test_interactive_mode_requires_terminal
 
 printf '1..%d\n' "$pass_count"

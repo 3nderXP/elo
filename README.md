@@ -16,6 +16,7 @@ The MVP supports:
 - interactive confirmation for state-changing operations.
 - stable or version-selected self-updates.
 - Modrinth addon search, installation, registry listing, and removal.
+- a Gum-powered interactive interface with keyboard navigation.
 
 The current target platforms are Linux and macOS with Bash.
 
@@ -41,8 +42,15 @@ After installation:
 
 ```bash
 elo init --minecraft-path "$HOME/.minecraft"
+elo
 elo --help
 ```
+
+Running `elo` without arguments opens the interactive interface. The Elo
+installer installs a verified, user-local copy of
+[`gum`](https://github.com/charmbracelet/gum) when Gum is not already available.
+It never uses `sudo` or changes the system package manager. Direct commands
+remain usable independently of the interactive interface.
 
 Update to the latest stable release, or select an exact release (including a
 pre-release):
@@ -105,6 +113,7 @@ lib/link.sh            symlinks, backup, switch, reset, and status
 lib/update.sh          stable and version-selected self-updates
 lib/provider.sh        provider routing and addon lifecycle
 lib/provider_modrinth.sh public Modrinth API integration
+lib/interactive.sh     Gum-powered interactive interface
 tests/test_elo.sh      instance-management integration tests
 tests/test_install.sh  isolated installer integration test
 tests/test_provider.sh offline provider integration tests

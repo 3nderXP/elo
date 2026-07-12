@@ -18,6 +18,13 @@ FAKE_CURL_LOG="$TEST_ROOT/curl.log"
 export FAKE_REMOTE FAKE_CURL_LOG
 export PATH="$BIN_DIR:$FAKE_BIN:$SYSTEM_PATH"
 
+mkdir -p "$FAKE_BIN"
+cat >"$FAKE_BIN/gum" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$FAKE_BIN/gum"
+
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
@@ -67,7 +74,7 @@ second_release="$(readlink "$INSTALL_DIR/current")"
 
 printf 'ok 1 - local installation creates and updates a working command\n'
 
-mkdir -p "$FAKE_BIN" "$FAKE_REMOTE/v1.2.3" "$FAKE_REMOTE/v2.0.0-rc.1"
+mkdir -p "$FAKE_REMOTE/v1.2.3" "$FAKE_REMOTE/v2.0.0-rc.1"
 cp "$PROJECT_DIR/install.sh" "$FAKE_REMOTE/v1.2.3/install.sh"
 cp "$PROJECT_DIR/elo.sh" "$FAKE_REMOTE/v1.2.3/elo.sh"
 cp -R "$PROJECT_DIR/lib" "$FAKE_REMOTE/v1.2.3/lib"
@@ -140,4 +147,59 @@ fi
 assert_release_count 2
 
 printf 'ok 3 - update accepts a pre-release and retains two releases\n'
-printf '1..3\n'
+
+GUM_ROOT="$TEST_ROOT/gum-install"
+GUM_BIN="$GUM_ROOT/bin"
+GUM_FAKE_BIN="$GUM_ROOT/fake-bin"
+GUM_REMOTE="$GUM_ROOT/remote"
+GUM_INSTALL_DIR="$GUM_ROOT/elo"
+mkdir -p "$GUM_BIN" "$GUM_FAKE_BIN" "$GUM_REMOTE"
+gum_os="$(uname -s)"
+case "$(uname -m)" in
+  x86_64 | amd64) gum_arch="x86_64" ;;
+  arm64 | aarch64) gum_arch="arm64" ;;
+  armv7l | armv7) gum_arch="armv7" ;;
+  *) fail "unsupported test architecture" ;;
+esac
+GUM_ASSET="gum_0.17.0_${gum_os}_${gum_arch}.tar.gz"
+GUM_ARCHIVE_DIR="${GUM_ASSET%.tar.gz}"
+mkdir -p "$GUM_REMOTE/archive/$GUM_ARCHIVE_DIR"
+cat >"$GUM_REMOTE/archive/$GUM_ARCHIVE_DIR/gum" <<'EOF'
+#!/usr/bin/env bash
+printf 'gum test fixture\n'
+EOF
+chmod +x "$GUM_REMOTE/archive/$GUM_ARCHIVE_DIR/gum"
+tar -czf "$GUM_REMOTE/$GUM_ASSET" -C "$GUM_REMOTE/archive" "$GUM_ARCHIVE_DIR"
+if command -v sha256sum >/dev/null 2>&1; then
+  gum_hash="$(sha256sum "$GUM_REMOTE/$GUM_ASSET")"
+else
+  gum_hash="$(shasum -a 256 "$GUM_REMOTE/$GUM_ASSET")"
+fi
+printf '%s  %s\n' "${gum_hash%% *}" "$GUM_ASSET" >"$GUM_REMOTE/checksums.txt"
+export GUM_REMOTE
+cat >"$GUM_FAKE_BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+output=""
+url=""
+while (($# > 0)); do
+  case "$1" in
+    -o) output="$2"; shift 2 ;;
+    -*) shift ;;
+    *) url="$1"; shift ;;
+  esac
+done
+cp "$GUM_REMOTE/${url##*/}" "$output"
+EOF
+chmod +x "$GUM_FAKE_BIN/curl"
+
+PATH="$GUM_FAKE_BIN:$SYSTEM_PATH" ELO_GUM_FORCE_INSTALL=1 \
+  "$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$GUM_INSTALL_DIR" --bin-dir "$GUM_BIN" >/dev/null
+[[ -L "$GUM_BIN/gum" && -x "$GUM_BIN/gum" ]] ||
+  fail "installer should create a working Gum command"
+[[ "$("$GUM_BIN/gum")" == "gum test fixture" ]] ||
+  fail "installed Gum command should execute the verified artifact"
+
+printf 'ok 4 - installer downloads and verifies Gum in user space\n'
+printf '1..4\n'

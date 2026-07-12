@@ -18,7 +18,11 @@ elo_help_general() {
   cat <<'EOF'
 
 Usage:
+  elo
   elo <command> [options]
+
+Run without a command to open the Gum-powered interactive interface.
+Direct commands remain available for scripts and quick operations.
 
 Commands:
   init      Configure the .minecraft directory to manage

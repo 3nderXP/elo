@@ -17,9 +17,21 @@ elo_die() {
   return 1
 }
 
+elo_gum_command() {
+  local gum_path
+  gum_path="$(command -v gum || true)"
+  if [[ -n "$gum_path" ]]; then
+    printf '%s\n' "$gum_path"
+  elif [[ -n "${ELO_COMMAND_DIR:-}" && -x "$ELO_COMMAND_DIR/gum" ]]; then
+    printf '%s\n' "$ELO_COMMAND_DIR/gum"
+  else
+    return 1
+  fi
+}
+
 elo_confirm() {
   local prompt="$1"
-  local answer
+  local answer gum_command
 
   if [[ "${ELO_ASSUME_YES:-0}" == "1" ]]; then
     return 0
@@ -28,6 +40,12 @@ elo_confirm() {
   if [[ ! -t 0 ]]; then
     elo_die "$prompt Use --yes for non-interactive execution."
     return 1
+  fi
+
+  gum_command="$(elo_gum_command || true)"
+  if [[ -n "$gum_command" ]]; then
+    "$gum_command" confirm --prompt.foreground 212 --selected.background 212 "$prompt"
+    return
   fi
 
   read -r -p "$prompt [y/N] " answer

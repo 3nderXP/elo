@@ -12,7 +12,6 @@ ELO_STATE_FILE="$ELO_HOME/state.conf"
 ELO_INSTANCES_DIR="$ELO_HOME/instances"
 ELO_BACKUP_DIR="$ELO_HOME/backups/original"
 ELO_DEFAULT_MANAGED_FOLDERS="mods resourcepacks shaderpacks config"
-ELO_GUM_COMMAND="test-gum"
 
 # shellcheck source=../lib/utils.sh
 source "$PROJECT_DIR/lib/utils.sh"
@@ -22,6 +21,7 @@ source "$PROJECT_DIR/lib/config.sh"
 source "$PROJECT_DIR/lib/provider.sh"
 # shellcheck source=../lib/interactive.sh
 source "$PROJECT_DIR/lib/interactive.sh"
+ELO_GUM_COMMAND="true"
 
 mkdir -p -- "$ELO_INSTANCES_DIR/alpha"
 : >"$ELO_CONFIG_FILE"
@@ -81,6 +81,10 @@ elo_ui_confirm() {
   [[ "$(elo_test_response)" == "yes" ]]
 }
 
+clear() {
+  :
+}
+
 elo_provider_available_names() {
   printf '%s\n' modrinth
 }
@@ -98,12 +102,25 @@ elo_cmd_install() { elo_test_record install "$@"; }
 elo_cmd_adopt() { elo_test_record adopt "$@"; }
 elo_cmd_addon_remove() { elo_test_record remove "$@"; }
 elo_cmd_link() { elo_test_record activate "$@"; }
-elo_cmd_provider() { elo_test_record provider "$@"; }
+elo_cmd_provider() {
+  elo_test_record provider "$@"
+  if [[ "${1:-}" == "list" ]]; then
+    printf 'AVAILABLE PROVIDERS\nmodrinth\n'
+  fi
+}
 elo_cmd_update() { elo_test_record update "$@"; }
 elo_cmd_uninstall() { elo_test_record uninstall "$@"; }
+elo_cmd_list() {
+  elo_test_record instances-list "$@"
+  printf 'NAME VERSION LOADER STATUS\nalpha 1.21 fabric active\n'
+}
+elo_cmd_addons_list() {
+  elo_test_record addons-list "$@"
+  printf 'SOURCE NAME TYPE VERSION STATE FILE\n------\n- sodium mod 1.0 external sodium.jar\n'
+}
 
-elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25
-elo_ui_search
+elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
+elo_ui_search >/dev/null
 assert_call $'search\nsodium\n--limit\n25\n--type\nmod\n--instance\nalpha'
 
 elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
@@ -133,6 +150,29 @@ assert_call $'update\n--version\nv1.2.3'
 elo_test_queue "Uninstall and permanently delete all data"
 elo_ui_uninstall
 assert_call $'uninstall\n--purge'
+
+elo_test_queue "List instances" Back
+elo_ui_instances_menu >/dev/null
+assert_call instances-list
+
+elo_test_queue "List addons" alpha Back
+elo_ui_addons_menu >/dev/null
+assert_call $'addons-list\nalpha'
+
+elo_test_queue "List available providers" Back
+elo_ui_provider >/dev/null
+assert_call $'provider\nlist'
+
+: >"$MENUS"
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Next Next Previous Back
+elo_ui_paginate "Test results" 1 $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/pages"
+assert_contains "$TEST_ROOT/pages" one
+assert_contains "$TEST_ROOT/pages" five
+assert_contains "$MENUS" "Navigate results Next Back"
+assert_contains "$MENUS" "Navigate results Previous Next Back"
+assert_contains "$MENUS" "Navigate results Previous Back"
+ELO_UI_PAGE_SIZE=10
 
 : >"$MENUS"
 elo_test_queue Back

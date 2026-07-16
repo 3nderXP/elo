@@ -2,6 +2,8 @@
 
 ELO_UI_ACCENT="212"
 ELO_GUM_COMMAND=""
+ELO_UI_PAGE_SIZE=10
+ELO_UI_SKIP_PAUSE=0
 
 elo_ui_require() {
   if [[ ! -t 0 || ! -t 1 ]]; then
@@ -54,6 +56,63 @@ elo_ui_input() {
 elo_ui_confirm() {
   "$ELO_GUM_COMMAND" confirm --prompt.foreground "$ELO_UI_ACCENT" \
     --selected.background "$ELO_UI_ACCENT" "$1"
+}
+
+elo_ui_paginate() {
+  local title="$1" header_count="$2" output="$3"
+  local page=0 data_count total_pages start end index action
+  local -a lines actions
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    lines+=("$line")
+  done <<<"$output"
+
+  data_count=$((${#lines[@]} - header_count))
+  ((data_count < 0)) && data_count=0
+  total_pages=$(((data_count + ELO_UI_PAGE_SIZE - 1) / ELO_UI_PAGE_SIZE))
+  ((total_pages == 0)) && total_pages=1
+  ELO_UI_SKIP_PAUSE=1
+
+  while true; do
+    clear
+    elo_ui_header
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
+      "$title — Page $((page + 1)) of $total_pages"
+    printf '\n'
+    index=0
+    while ((index < header_count && index < ${#lines[@]})); do
+      printf '%s\n' "${lines[$index]}"
+      index=$((index + 1))
+    done
+    start=$((header_count + page * ELO_UI_PAGE_SIZE))
+    end=$((start + ELO_UI_PAGE_SIZE))
+    ((end > ${#lines[@]})) && end=${#lines[@]}
+    index=$start
+    while ((index < end)); do
+      printf '%s\n' "${lines[$index]}"
+      index=$((index + 1))
+    done
+    printf '\n'
+
+    actions=()
+    ((page > 0)) && actions+=("Previous")
+    ((page + 1 < total_pages)) && actions+=("Next")
+    actions+=("Back")
+    action="$(elo_ui_choose_header "Navigate results" "${actions[@]}")" || return 0
+    case "$action" in
+      Previous) page=$((page - 1)) ;;
+      Next) page=$((page + 1)) ;;
+      *) return 0 ;;
+    esac
+  done
+}
+
+elo_ui_paginated_command() {
+  local title="$1" header_count="$2" output
+  shift 2
+  if ! output="$("$@")"; then
+    return 1
+  fi
+  elo_ui_paginate "$title" "$header_count" "$output"
 }
 
 elo_ui_instances() {
@@ -168,14 +227,14 @@ elo_ui_search() {
     esac
   fi
   provider="$(elo_ui_select_provider "Search provider")" || return 0
-  limit="$(elo_ui_input "Maximum results (1-100)" "10" "10")" || return 0
-  [[ -n "$limit" ]] || limit=10
+  limit="$(elo_ui_input "Maximum results (1-100)" "50" "50")" || return 0
+  [[ -n "$limit" ]] || limit=50
 
   args=("$query" --limit "$limit")
   [[ -n "$type" ]] && args+=(--type "$type")
   [[ -n "$instance" ]] && args+=(--instance "$instance")
   [[ -n "$provider" ]] && args+=(--provider "$provider")
-  elo_cmd_search "${args[@]}"
+  elo_ui_paginated_command "Search results" 1 elo_cmd_search "${args[@]}"
 }
 
 elo_ui_install() {
@@ -195,7 +254,7 @@ elo_ui_install() {
 elo_ui_addons_list() {
   local instance
   instance="$(elo_ui_select_instance "Show addons from which instance?")" || return 0
-  elo_cmd_addons_list "$instance"
+  elo_ui_paginated_command "Addons in $instance" 2 elo_cmd_addons_list "$instance"
 }
 
 elo_ui_adopt() {
@@ -239,7 +298,9 @@ elo_ui_provider() {
     "Show preferred provider" "List available providers" "Change preferred provider" "Back")" || return 0
   case "$action" in
     "Show preferred provider") elo_cmd_provider show ;;
-    "List available providers") elo_cmd_provider list ;;
+    "List available providers")
+      elo_ui_paginated_command "Available providers" 1 elo_cmd_provider list
+      ;;
     "Change preferred provider")
       elo_ui_providers
       if ((${#ELO_UI_PROVIDERS[@]} == 0)); then
@@ -322,7 +383,7 @@ elo_ui_instances_menu() {
   case "$action" in
     "Create instance") elo_ui_new ;;
     "Activate or switch instance") elo_ui_activate ;;
-    "List instances") elo_cmd_list ;;
+    "List instances") elo_ui_paginated_command "Instances" 1 elo_cmd_list ;;
     "Reset managed links") elo_cmd_reset ;;
     "Remove instance") elo_ui_remove_instance ;;
   esac
@@ -363,6 +424,7 @@ elo_ui_run() {
   elo_ui_require || return
 
   while true; do
+    ELO_UI_SKIP_PAUSE=0
     clear
     elo_ui_header
     if [[ ! -f "$ELO_CONFIG_FILE" ]]; then
@@ -385,6 +447,8 @@ elo_ui_run() {
       esac
     fi
     [[ "$ELO_UI_EXIT" == "1" ]] && return 0
-    elo_ui_pause
+    if [[ "$ELO_UI_SKIP_PAUSE" != "1" ]]; then
+      elo_ui_pause
+    fi
   done
 }

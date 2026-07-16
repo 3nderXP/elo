@@ -13,8 +13,9 @@ offline fake Modrinth transport.
 
 `tests/test_interactive.sh` uses deterministic Gum-response stubs to verify
 that interactive menus expose the CLI operations and delegate their selected
-options to the existing command handlers. It does not contact providers or
-access a real terminal.
+options to the existing command handlers. It also covers paginated list wiring,
+page boundaries, and contextual Previous/Next navigation. It does not contact
+providers or access a real terminal.
 
 Tests must use temporary `ELO_HOME` and `.minecraft` roots, remain offline, and
 clean only their own temporary data.

@@ -156,6 +156,9 @@ directories and connects `.minecraft` to the selected instance.
 
 Choose **Addons**, then **Search addons**. Enter a query such as `sodium` and
 optionally select its type, compatibility instance, provider, and result limit.
+Search results and other guided lists show 10 items per page with
+**Previous**/**Next** navigation. Direct commands continue to print complete
+lists without interactive pagination.
 
 To install a result, choose **Addons**, then **Install addon**, select the
 instance, and enter the project ID or slug. You may preview the dependency plan

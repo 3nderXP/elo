@@ -33,6 +33,12 @@ activation mode, exact-version updates, purge selection, and command-specific
 help. Interactive state changes delegate to the existing command handlers so
 their validation and confirmation semantics remain authoritative.
 
+Interactive instance, search-result, installed-addon, and provider lists use a
+standard page size of 10 items. Navigation offers `Previous` and `Next` only
+when those pages exist, plus `Back` on every page. Search requests up to 50
+results by default so navigation can span multiple pages. Direct CLI output is
+not paginated and remains suitable for pipes and automation.
+
 All output must be English. Use `info:`, `warning:`, and `error:` prefixes.
 General and command-specific help must explain required fields, defaults,
 risks, and examples.

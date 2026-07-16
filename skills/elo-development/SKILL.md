@@ -9,9 +9,13 @@ Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 
 ## Required preparation
 
-1. Inspect the current Git branch before changing files. If it is `develop`,
-   create a new task branch with `git switch -c <type>/<task> develop`. If it is
-   not `develop`, stop and ask the user how to proceed.
+1. Inspect the current Git branch, working tree, upstream, and remotes before
+   changing files. If it is a clean `develop`, update it from its configured
+   upstream with `git pull --ff-only <remote> develop`, verify success, then
+   create a new task branch with `git switch -c <type>/<task> develop`. Do not
+   assume the remote name. On a dirty tree, divergence, missing upstream, pull
+   failure, or any branch other than `develop`, stop and ask the user how to
+   proceed.
 2. Read `specs/README.md`.
 3. Read every reference in this skill:
    - [Bash and shell](references/bash.md)
@@ -28,7 +32,7 @@ Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 3. Make the smallest architecture-consistent change.
 4. Add or update isolated tests.
 5. Run `bash -n install.sh elo.sh lib/*.sh tests/*.sh`.
-6. Run both integration test scripts.
+6. Run all integration test scripts and the interactive delegation test.
 7. Update affected specs when contracts change.
 
 ## Non-negotiable rules
@@ -41,5 +45,6 @@ Develop Elo as a modular Bash CLI that prioritizes user-data preservation.
 - Keep CLI parsing separate from filesystem logic.
 - Never access real user data in tests.
 - Keep all tracked project text in English.
-- Never begin a task on `develop`; create its branch first. Never change away
-  from another current branch without the user's decision.
+- Never begin a task on stale `develop`; fast-forward it and create the task
+  branch first. Never stash, switch, pull, rebase, merge, or discard work to
+  resolve a blocked preparation flow without the user's decision.

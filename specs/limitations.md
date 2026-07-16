@@ -8,5 +8,6 @@
 - Orphan cleanup cannot infer optional or external-addon relationships
 - No native Windows support
 - Human-oriented output only; no JSON
-- Integration tests only; no per-module unit suite
+- Shell-level integration and interactive delegation tests; no exhaustive
+  per-module unit suite
 - English-only CLI until localization is implemented

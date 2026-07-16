@@ -25,6 +25,14 @@ and stdout are terminals. The installer supplies Gum in user space when it is
 not already available. Supplying a command keeps the direct CLI contract and
 remains suitable for automation.
 
+The interactive interface groups the same operations under Instances, Addons,
+and System menus. It MUST expose every command and meaningful option in the CLI
+contract, including addon search filters, dry-run installation, external-file
+adoption, both addon removal forms, orphan cleanup, provider management,
+activation mode, exact-version updates, purge selection, and command-specific
+help. Interactive state changes delegate to the existing command handlers so
+their validation and confirmation semantics remain authoritative.
+
 All output must be English. Use `info:`, `warning:`, and `error:` prefixes.
 General and command-specific help must explain required fields, defaults,
 risks, and examples.

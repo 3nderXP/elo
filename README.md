@@ -139,7 +139,7 @@ confirm changes.
 
 ### 3. Create an instance
 
-Choose **Create instance**, then provide:
+Choose **Instances**, then **Create instance**, and provide:
 
 - a short name, such as `fabric-1_21`;
 - the Minecraft version, such as `1.21.1`;
@@ -147,15 +147,23 @@ Choose **Create instance**, then provide:
 
 ### 4. Activate it
 
-Choose **Switch instance** and select the instance. On first activation, Elo
-backs up existing managed folders and connects `.minecraft` to the selected
-instance.
+Choose **Instances**, then **Activate or switch instance**, and select the
+instance. Keep the recommended backup mode unless you deliberately want to
+delete existing managed directories. On first activation, Elo backs up those
+directories and connects `.minecraft` to the selected instance.
 
-### 5. Install addons
+### 5. Search and install addons
 
-Choose **Install addon**, select the instance, and enter a Modrinth project ID
-or slug, such as `sodium`. Elo shows the addon and required dependency plan
-before asking for confirmation.
+Choose **Addons**, then **Search addons**. Enter a query such as `sodium` and
+optionally select its type, compatibility instance, provider, and result limit.
+
+To install a result, choose **Addons**, then **Install addon**, select the
+instance, and enter the project ID or slug. You may preview the dependency plan
+with dry-run mode or continue with installation and confirmation.
+
+The guided interface also exposes addon listing, external-file adoption, both
+removal forms, provider settings, instance reset and removal, status, updates,
+self-uninstallation, and command-specific help.
 
 ## Quick start: direct commands
 
@@ -447,6 +455,7 @@ bash -n install.sh elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
 ./tests/test_provider.sh
 ./tests/test_install.sh
+./tests/test_interactive.sh
 git diff --check
 ```
 

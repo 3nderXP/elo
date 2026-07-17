@@ -92,7 +92,7 @@ elo_cmd_list() {
 
 elo_cmd_remove() {
   local name="${1:-}" reset=0
-  local active directory
+  local active directory cache_directory
 
   elo_require_initialized || return
   if [[ -z "$name" || "$name" == --* ]]; then
@@ -134,6 +134,8 @@ elo_cmd_remove() {
   }
 
   directory="$(elo_instance_dir "$name")"
+  cache_directory="$ELO_ADDON_CACHE_DIR/$name"
   rm -rf -- "$directory"
+  rm -rf -- "$cache_directory"
   elo_info "Instance removed: $name"
 }

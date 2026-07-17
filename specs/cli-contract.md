@@ -9,7 +9,7 @@ elo instances list
 elo instances remove <name> [--reset] [--yes]
 elo addons provider [show|list|set <provider> [--yes]]
 elo addons search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
-elo addons install <instance> <id-or-slug> [--provider <provider>] [--dry-run] [--yes]
+elo addons install <instance> <id-or-slug> [--provider <provider>] [--platform iris|optifine] [--dry-run] [--yes]
 elo addons list <instance>
 elo addons adopt <instance> <mods|resourcepacks|shaderpacks>/<filename> [--yes]
 elo addons remove <instance> <id-or-slug> [--provider <provider>] [--remove-orphans] [--yes]
@@ -24,6 +24,50 @@ elo help [command] [subcommand]
 and stdout are terminals. The installer supplies Gum in user space when it is
 not already available. Supplying a command keeps the direct CLI contract and
 remains suitable for automation.
+
+The interactive interface groups the same operations under Instances, Addons,
+and System menus. It MUST expose every command and meaningful option in the CLI
+contract, including addon search filters, shader platform selection, dry-run
+installation, external-file adoption, both addon removal forms, orphan cleanup,
+provider management,
+activation mode, exact-version updates, purge selection, and command-specific
+help. Interactive state changes delegate to the existing command handlers so
+their validation and confirmation semantics remain authoritative.
+
+Interactive instance, search-result, installed-addon, and provider lists use a
+standard page size of 10 items. Navigation offers `Previous` and `Next` only
+when those pages exist, `First` and `Last` for direct boundary jumps, plus
+`Back` on every page. Gum initializes the cursor on the last navigation action
+when that action remains available. Direct CLI output is not paginated and
+remains suitable for pipes and automation.
+
+Interactive lists, link status, and addon installation plans use static
+`gum table` rendering with one shared rounded layout and a muted
+Minecraft-inspired palette: grass green for focus and
+actions, sky blue for structure, and wood brown for selection and context.
+Other Gum controls use the same palette. Addon adoption and exact-file removal
+use `gum file`, rooted in the selected instance's valid addon directory; the
+command handlers still enforce path and file-safety rules.
+Every interactive screen renders the installed ASCII logo in wood brown inside
+the shared rounded grass-green border and dark theme background. The header has
+one blank row above and below the artwork and at least six blank columns on each
+side. Its minimum terminal width is calculated from the current artwork width,
+both horizontal padding areas, and the border. Narrower terminals use the
+compact textual header to prevent horizontal clipping. The renderer passes the
+logo to Gum as one argument so structural leading and trailing spaces are
+preserved.
+
+Before the first interactive page is shown, Gum displays a loading spinner.
+Search, instance, and provider lists build a fresh session snapshot and derive
+the current and adjacent pages from it by numeric index. Addon listing first
+builds a cheap inventory, validates only the current page, and prefetches the
+next page in a background worker while visited pages remain cached. If a page
+is requested before its worker finishes, the spinner remains visible until it
+is ready. Interactive provider search also loads pages lazily using provider
+offsets and total-hit metadata; its selected page size does not cap the total
+number of browsable results. A new list operation invalidates the prior cache,
+and leaving the interactive process stops workers and removes its temporary
+files.
 
 All output must be English. Use `info:`, `warning:`, and `error:` prefixes.
 General and command-specific help must explain required fields, defaults,
@@ -43,8 +87,8 @@ then removes older directories that match the managed release layout. Unknown
 entries and releases needed for recovery must never be removed.
 
 `elo addons` commands default to public `modrinth`. Search types: `mod`,
-`resourcepack`, `shader`; limits: 1 through 100. Install resolves against
-instance version and loader, recursively installs required dependencies, never
+`resourcepack`, `shader`; limits: 1 through 100. Install uses type-specific
+instance compatibility, recursively installs required dependencies, never
 overwrites files, and records managed files. Remove deletes only matching
 regular registry files; dependencies remain for explicit cleanup.
 
@@ -68,6 +112,20 @@ files. `--file` explicitly authorizes one direct relative addon path and also
 clears its registry entry when present. Symlinks and nested paths are refused.
 Output uses a fixed 160-character table; values exceeding column widths end in
 `...`.
+
+Addon listing reads the registry once, builds a linear reverse file index, and
+caches managed-file integrity results by expected hash plus device, inode,
+size, modification time, and change time. Unchanged fingerprints reuse their
+display state; new or changed fingerprints recalculate SHA-512. Removal and
+orphan cleanup always verify current file content independently of this derived
+cache.
+
+Instance loader filters apply only to mod searches and mod version resolution.
+Resource packs resolve with Modrinth's `minecraft` loader classification.
+Shaders retain the instance's game-version filter but do not inherit its mod
+loader. Shader installation requires `--platform iris|optifine` for an explicit
+per-installation choice. The interactive flow requires the same Iris or OptiFine
+selection without persisting a global shader platform on the instance.
 
 Search prints `info: No addons found.` when provider results are empty.
 `addons remove --remove-orphans` computes reachability from every remaining

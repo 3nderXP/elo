@@ -4,10 +4,15 @@
 - Linux and macOS MVP
 - Bash 3.2 compatibility where practical
 - Strict mode in executables and tests
-- Standard utilities: `mv`, `rm`, `ln`, `readlink`, `mktemp`, and `date`
+- Standard utilities: `mv`, `rm`, `ln`, `readlink`, `mktemp`, `date`, `stat`,
+  `awk`, `sed`, `wc`, `cat`, `kill`, and `sleep`
 - `curl` required for remote installation, updates, and provider downloads
 - Gum v0.17.0 is copied or installed into Elo's private user-space tools
   directory and powers the no-argument interactive interface
+- Gum changes start from the official raw command reference at
+  https://raw.githubusercontent.com/charmbracelet/gum/refs/heads/main/README.md
+  and MUST be checked against `gum <command> --help` for the pinned v0.17.0
+  runtime before implementation
 - `tar` plus `sha256sum` or `shasum` is required for verified Gum installation
 - `jq` required only for provider API commands
 - No authentication required for public Modrinth API access

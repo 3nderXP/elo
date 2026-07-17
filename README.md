@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="banner.png" alt="Elo banner">
+  <img src="assets/branding/banner-frame.png" alt="Elo logo with Tux in a Minecraft chest">
 
   <h1>Elo</h1>
 
@@ -139,7 +139,7 @@ confirm changes.
 
 ### 3. Create an instance
 
-Choose **Create instance**, then provide:
+Choose **Instances**, then **Create instance**, and provide:
 
 - a short name, such as `fabric-1_21`;
 - the Minecraft version, such as `1.21.1`;
@@ -147,15 +147,45 @@ Choose **Create instance**, then provide:
 
 ### 4. Activate it
 
-Choose **Switch instance** and select the instance. On first activation, Elo
-backs up existing managed folders and connects `.minecraft` to the selected
-instance.
+Choose **Instances**, then **Activate or switch instance**, and select the
+instance. Keep the recommended backup mode unless you deliberately want to
+delete existing managed directories. On first activation, Elo backs up those
+directories and connects `.minecraft` to the selected instance.
 
-### 5. Install addons
+### 5. Search and install addons
 
-Choose **Install addon**, select the instance, and enter a Modrinth project ID
-or slug, such as `sodium`. Elo shows the addon and required dependency plan
-before asking for confirmation.
+Choose **Addons**, then **Search addons**. Enter a query such as `sodium` and
+optionally select its type, compatibility instance, provider, and result limit.
+Search results and other guided lists show 10 items per page with
+**First**/**Previous**/**Next**/**Last** navigation. Search retrieves provider
+pages on demand, so the chosen page size does not limit the total matching
+results. Native Gum tables give instance, addon, provider, and search lists one
+consistent layout. Gum keeps the last navigation action selected between page
+renders.
+Direct commands continue to print complete lists without interactive
+pagination.
+The interface shows a loading animation while it prepares a new list. Addon
+validation is lazy: the current page is checked first, the next page loads in
+the background, and visited pages remain cached for instant navigation.
+Starting another list refreshes the temporary cache.
+
+When adopting an external addon or removing one by its exact path, choose its
+category and select the file in Gum's directory browser. The browser starts in
+the corresponding instance addon directory, while Elo's existing safety checks
+still validate the final selection.
+
+Integrity results also persist by instance. Unchanged files reuse their cached
+status, while new, missing, or metadata-changed files are validated directly.
+Removal commands always recalculate the current hash before deleting a managed
+addon.
+
+To install a result, choose **Addons**, then **Install addon**, select the
+instance, and enter the project ID or slug. You may preview the dependency plan
+with dry-run mode or continue with installation and confirmation.
+
+The guided interface also exposes addon listing, external-file adoption, both
+removal forms, provider settings, instance reset and removal, status, updates,
+self-uninstallation, and command-specific help.
 
 ## Quick start: direct commands
 
@@ -274,13 +304,25 @@ elo addons search complementary \
 ```
 
 Supported search types are `mod`, `resourcepack`, and `shader`. Modrinth is the
-default and currently the only provider.
+default and currently the only provider. Instance loaders such as Fabric and
+NeoForge filter mods only; shader and resource-pack searches still use the
+instance's Minecraft version without inheriting its mod loader.
 
 Preview installation without changing files:
 
 ```bash
 elo addons install fabric-1_21 sodium --dry-run
 ```
+
+Shader installation requires an explicit platform choice:
+
+```bash
+elo addons install fabric-1_21 psx-core --platform iris --dry-run
+```
+
+The interactive interface asks for Iris or OptiFine after detecting a shader.
+This choice is per installation because the instance mod loader and the shader
+platform describe different compatibility layers.
 
 Elo never overwrites an existing addon with different or unverifiable content.
 If an unregistered file has the exact expected filename and SHA-512 hash, Elo
@@ -447,6 +489,7 @@ bash -n install.sh elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
 ./tests/test_provider.sh
 ./tests/test_install.sh
+./tests/test_interactive.sh
 git diff --check
 ```
 

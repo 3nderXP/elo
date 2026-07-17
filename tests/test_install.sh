@@ -51,6 +51,11 @@ assert_release_count() {
 [[ -L "$INSTALL_DIR/current" ]] || fail "current should be a symlink"
 [[ -L "$COMMAND" ]] || fail "the elo command should be a symlink"
 [[ -x "$COMMAND" ]] || fail "the elo command should be executable"
+[[ -f "$INSTALL_DIR/current/assets/branding/elo.asc" ]] ||
+  fail "the installed release should include the terminal logo"
+cmp "$PROJECT_DIR/assets/branding/elo.asc" \
+  "$INSTALL_DIR/current/assets/branding/elo.asc" >/dev/null ||
+  fail "the installer should preserve the terminal logo byte for byte"
 grep -F "BIN_DIR=$BIN_DIR" "$INSTALL_DIR/install.conf" >/dev/null ||
   fail "installer should persist the command directory for updates"
 
@@ -78,9 +83,11 @@ mkdir -p "$FAKE_REMOTE/v1.2.3" "$FAKE_REMOTE/v2.0.0-rc.1"
 cp "$PROJECT_DIR/install.sh" "$FAKE_REMOTE/v1.2.3/install.sh"
 cp "$PROJECT_DIR/elo.sh" "$FAKE_REMOTE/v1.2.3/elo.sh"
 cp -R "$PROJECT_DIR/lib" "$FAKE_REMOTE/v1.2.3/lib"
+cp -R "$PROJECT_DIR/assets" "$FAKE_REMOTE/v1.2.3/assets"
 cp "$PROJECT_DIR/install.sh" "$FAKE_REMOTE/v2.0.0-rc.1/install.sh"
 cp "$PROJECT_DIR/elo.sh" "$FAKE_REMOTE/v2.0.0-rc.1/elo.sh"
 cp -R "$PROJECT_DIR/lib" "$FAKE_REMOTE/v2.0.0-rc.1/lib"
+cp -R "$PROJECT_DIR/assets" "$FAKE_REMOTE/v2.0.0-rc.1/assets"
 
 cat >"$FAKE_BIN/curl" <<'EOF'
 #!/usr/bin/env bash

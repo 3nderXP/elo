@@ -19,9 +19,34 @@ elo_provider_call() {
 elo_provider_is_available() {
   local provider="$1" action
   elo_provider_validate_name "$provider" || return
-  for action in search resolve get_dependencies download; do
+  for action in search search_page project_type resolve get_dependencies download; do
     declare -F "elo_provider_${provider}_${action}" >/dev/null 2>&1 || return 1
   done
+}
+
+elo_search_page() {
+  local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
+  local version="" loader=""
+  elo_require_initialized || return
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || {
+    elo_die "Invalid addon type: $type"
+    return 1
+  }
+  [[ "$limit" =~ ^[0-9]+$ ]] && ((limit >= 1 && limit <= 100)) || {
+    elo_die "Page size must be between 1 and 100."
+    return 1
+  }
+  [[ "$offset" =~ ^[0-9]+$ ]] || {
+    elo_die "Search offset must be a non-negative integer."
+    return 1
+  }
+  if [[ -n "$instance" ]]; then
+    elo_require_instance "$instance" || return
+    version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
+    loader="$(elo_instance_metadata "$instance" LOADER)"
+  fi
+  elo_provider_call "$provider" search_page \
+    "$query" "$type" "$version" "$loader" "$limit" "$offset"
 }
 
 elo_provider_available_names() {
@@ -106,6 +131,7 @@ elo_addon_registry_add() {
   elo_kv_set "$file" "${key}_type" "$(printf '%s' "$metadata" | jq -r '.type')"
   elo_kv_set "$file" "${key}_is_dependency" "$is_dependency"
   elo_kv_set "$file" "${key}_dependencies" "$(printf '%s' "$metadata" | jq -r '.dependency_keys // ""')"
+  elo_addon_cache_invalidate "$instance" "$key" || true
 }
 
 elo_addon_registry_remove() {
@@ -120,6 +146,7 @@ elo_addon_registry_remove() {
   for suffix in slug name version_id version_number filename sha512 type is_dependency dependencies; do
     elo_kv_unset "$file" "${key}_$suffix"
   done
+  elo_addon_cache_invalidate "$instance" "$key" || true
 }
 
 elo_addon_type_dir() {
@@ -155,6 +182,81 @@ elo_text_sha512() {
   else
     elo_die "sha512sum or shasum is required for addon integrity checks."
   fi
+}
+
+elo_file_fingerprint() {
+  local file="$1" fingerprint
+  if fingerprint="$(stat -c '%d:%i:%s:%Y:%Z' "$file" 2>/dev/null)"; then
+    printf '%s\n' "$fingerprint"
+  elif fingerprint="$(stat -f '%d:%i:%z:%m:%c' "$file" 2>/dev/null)"; then
+    printf '%s\n' "$fingerprint"
+  else
+    elo_die "Could not read addon file metadata: $file"
+    return 1
+  fi
+}
+
+elo_addon_cache_instance_dir() {
+  printf '%s/%s\n' "$ELO_ADDON_CACHE_DIR" "$1"
+}
+
+elo_addon_cache_file() {
+  local instance="$1" key="$2" cache_id
+  cache_id="$(elo_text_sha512 "$key")" || return
+  printf '%s/%s.conf\n' "$(elo_addon_cache_instance_dir "$instance")" "$cache_id"
+}
+
+elo_addon_cache_invalidate() {
+  local instance="$1" key="$2" cache_file
+  cache_file="$(elo_addon_cache_file "$instance" "$key")" || return
+  rm -f -- "$cache_file"
+}
+
+elo_addon_cache_write() {
+  local instance="$1" key="$2" expected="$3" fingerprint="$4" actual="$5" state="$6"
+  local cache_file temporary
+  cache_file="$(elo_addon_cache_file "$instance" "$key")" || return
+  mkdir -p -- "$(dirname -- "$cache_file")"
+  temporary="$(mktemp "${cache_file}.tmp.XXXXXX")"
+  {
+    printf 'CACHE_VERSION=1\n'
+    printf 'ADDON_KEY=%s\n' "$key"
+    printf 'EXPECTED_SHA512=%s\n' "$expected"
+    printf 'FINGERPRINT=%s\n' "$fingerprint"
+    printf 'ACTUAL_SHA512=%s\n' "$actual"
+    printf 'STATE=%s\n' "$state"
+  } >"$temporary"
+  mv -- "$temporary" "$cache_file"
+}
+
+elo_addon_cached_state() {
+  local instance="$1" key="$2" expected="$3" target="$4"
+  local cache_file fingerprint="missing" actual="" state=missing
+  cache_file="$(elo_addon_cache_file "$instance" "$key")" || return
+  if [[ -f "$target" && ! -L "$target" ]]; then
+    fingerprint="$(elo_file_fingerprint "$target")" || return
+  fi
+  if [[ -f "$cache_file" && \
+    "$(elo_kv_get "$cache_file" CACHE_VERSION || true)" == "1" && \
+    "$(elo_kv_get "$cache_file" ADDON_KEY || true)" == "$key" && \
+    "$(elo_kv_get "$cache_file" EXPECTED_SHA512 || true)" == "$expected" && \
+    "$(elo_kv_get "$cache_file" FINGERPRINT || true)" == "$fingerprint" ]]; then
+    state="$(elo_kv_get "$cache_file" STATE || true)"
+    if [[ "$state" == "managed" || "$state" == "modified" || "$state" == "missing" ]]; then
+      printf '%s\n' "$state"
+      return 0
+    fi
+  fi
+  if [[ "$fingerprint" != "missing" ]]; then
+    if [[ -n "$expected" ]]; then
+      actual="$(elo_file_sha512 "$target")" || return
+      if [[ "$actual" == "$expected" ]]; then state=managed; else state=modified; fi
+    else
+      state=modified
+    fi
+  fi
+  elo_addon_cache_write "$instance" "$key" "$expected" "$fingerprint" "$actual" "$state" || return
+  printf '%s\n' "$state"
 }
 
 elo_addon_key_by_file() {
@@ -265,11 +367,11 @@ elo_install_plan_add_line() {
 }
 
 elo_install_plan_resolve() {
-  local instance="$1" provider="$2" id_or_slug="$3" kind="$4" requested_version="${5:-}"
+  local instance="$1" provider="$2" id_or_slug="$3" kind="$4" requested_version="${5:-}" platform="${6:-}"
   local version loader metadata key status dependencies dep_project dep_version dep_ref
   version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
   loader="$(elo_instance_metadata "$instance" LOADER)"
-  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version")" || return
+  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version" "$platform")" || return
   key="$(elo_addon_key "$provider" "$(printf '%s' "$metadata" | jq -r '.project_id')")"
   [[ "$ELO_INSTALL_PLAN_VISITED" == *"|$key|"* ]] && return 0
   ELO_INSTALL_PLAN_VISITED="$ELO_INSTALL_PLAN_VISITED|$key|"
@@ -294,6 +396,10 @@ elo_install_plan_row() {
 
 elo_install_plan_print() {
   local instance="$1" addon="$2" kind name version type status
+  if [[ "${ELO_UI_ACTIVE:-0}" == "1" ]] && declare -F elo_ui_install_plan_table >/dev/null 2>&1; then
+    elo_ui_install_plan_table "$instance" "$addon" "$ELO_INSTALL_PLAN_LINES"
+    return
+  fi
   printf 'Installation plan for %s in %s:\n\n' "$addon" "$instance"
   elo_install_plan_row KIND NAME VERSION TYPE ACTION
   printf '%s\n' '--------------------------------------------------------------------------------------------------------'
@@ -303,12 +409,12 @@ elo_install_plan_print() {
 }
 
 elo_addon_install_recursive() {
-  local instance="$1" provider="$2" id_or_slug="$3" is_dependency="$4" requested_version="${5:-}"
+  local instance="$1" provider="$2" id_or_slug="$3" is_dependency="$4" requested_version="${5:-}" platform="${6:-}"
   local version loader metadata project_id key type target filename dependencies dep_version dep_project dep_ref
   local expected_hash actual_hash dependency_keys=""
   version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
   loader="$(elo_instance_metadata "$instance" LOADER)"
-  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version")" || return
+  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version" "$platform")" || return
   project_id="$(printf '%s' "$metadata" | jq -r '.project_id')"
   key="$(elo_addon_key "$provider" "$project_id")"
   [[ "$ELO_ADDON_INSTALL_VISITED" == *"|$key|"* ]] && return 0
@@ -372,7 +478,7 @@ elo_addon_install_recursive() {
 }
 
 elo_cmd_install() {
-  local instance="${1:-}" addon="${2:-}" provider="" dry_run=0
+  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0
   elo_require_initialized || return
   if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug> [options]"; return; fi
   elo_require_instance "$instance" || return
@@ -380,15 +486,20 @@ elo_cmd_install() {
   while (($# > 0)); do
     case "$1" in
       --provider) elo_require_value "$1" "${2:-}" || return; provider="$2"; shift 2 ;;
+      --platform) elo_require_value "$1" "${2:-}" || return; platform="$2"; shift 2 ;;
       --dry-run) dry_run=1; shift ;;
       --yes) ELO_ASSUME_YES=1; shift ;;
       *) elo_die "Invalid option for install: $1"; return ;;
     esac
   done
+  [[ -z "$platform" || "$platform" == "iris" || "$platform" == "optifine" ]] || {
+    elo_die "--platform must be iris or optifine."
+    return 1
+  }
   provider="${provider:-$(elo_preferred_provider)}"
   ELO_INSTALL_PLAN_VISITED=""
   ELO_INSTALL_PLAN_LINES=""
-  elo_install_plan_resolve "$instance" "$provider" "$addon" addon || return
+  elo_install_plan_resolve "$instance" "$provider" "$addon" addon "" "$platform" || return
   elo_install_plan_print "$instance" "$addon"
   if [[ "$ELO_INSTALL_PLAN_LINES" == *$'\tcollision'* ]]; then
     elo_die "Resolve addon file collisions before installation."
@@ -398,50 +509,113 @@ elo_cmd_install() {
   printf '\n'
   elo_confirm "Install '$addon' and required dependencies into '$instance'?" || { elo_warn "Installation cancelled."; return 1; }
   ELO_ADDON_INSTALL_VISITED=""
-  elo_addon_install_recursive "$instance" "$provider" "$addon" false
+  elo_addon_install_recursive "$instance" "$provider" "$addon" false "" "$platform"
+}
+
+elo_addon_registry_inventory() {
+  local instance="$1" file
+  file="$(elo_addon_registry "$instance")"
+  [[ -f "$file" ]] || return 0
+  awk '
+    function value(line, position, result) {
+      position = index(line, "=")
+      result = substr(line, position + 1)
+      if (result ~ /^".*"$/) result = substr(result, 2, length(result) - 2)
+      return result
+    }
+    {
+      position = index($0, "=")
+      if (position == 0) next
+      key = substr($0, 1, position - 1)
+      values[key] = value($0)
+      if (key == "addon_ids") count = split(values[key], ids, ",")
+    }
+    END {
+      for (i = 1; i <= count; i++) {
+        id = ids[i]
+        if (id == "") continue
+        printf "registered\t%s\t%s\t%s\t%s\t%s\t%s\n", id,
+          values[id "_type"], values[id "_filename"], values[id "_sha512"],
+          values[id "_name"], values[id "_version_number"]
+      }
+    }
+  ' "$file"
+}
+
+elo_addons_list_inventory() {
+  local instance="$1" directory entry entry_type filename
+  elo_require_initialized || return
+  elo_require_instance "$instance" || return
+  {
+    elo_addon_registry_inventory "$instance"
+    for entry_type in mod resourcepack shader; do
+      directory="$(elo_addon_type_dir "$instance" "$entry_type")"
+      shopt -s nullglob dotglob
+      for entry in "$directory"/*; do
+        [[ -f "$entry" && ! -L "$entry" ]] || continue
+        filename="${entry##*/}"
+        printf 'physical\t-\t%s\t%s\t-\t-\t-\n' "$entry_type" "$filename"
+      done
+      shopt -u nullglob dotglob
+    done
+  } | awk -F '\t' '
+    $1 == "registered" {
+      known[$3 SUBSEP $4] = 1
+      print
+      next
+    }
+    $1 == "physical" && !known[$3 SUBSEP $4] {
+      printf "external\t-\t%s\t%s\t-\t%s\t-\n", $3, $4, $4
+    }
+  '
+}
+
+elo_addons_list_inventory_row() {
+  local instance="$1" kind="$2" key="$3" type="$4" filename="$5"
+  local expected="$6" name="$7" version="$8" target state
+  if [[ "$kind" == "external" ]]; then
+    elo_addon_table_row - "$name" "$type" - external "$filename"
+    return
+  fi
+  if [[ -z "$filename" || "$filename" == */* || "$filename" == *$'\n'* ]]; then
+    state=missing
+  else
+    target="$(elo_addon_type_dir "$instance" "$type")/$filename" || return
+    state="$(elo_addon_cached_state "$instance" "$key" "$expected" "$target")" || return
+  fi
+  elo_addon_table_row "$key" "$name" "$type" "$version" "$state" "$filename"
+}
+
+elo_addons_list_inventory_page() {
+  local instance="$1" inventory="$2" offset="$3" limit="$4"
+  local index=0 kind key type filename expected name version
+  elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
+  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
+  while IFS=$'\t' read -r kind key type filename expected name version || [[ -n "$kind" ]]; do
+    if ((index >= offset && index < offset + limit)); then
+      elo_addons_list_inventory_row \
+        "$instance" "$kind" "$key" "$type" "$filename" "$expected" "$name" "$version" || return
+    fi
+    index=$((index + 1))
+    if ((index >= offset + limit)); then break; fi
+  done <"$inventory"
+  return 0
 }
 
 elo_cmd_addons_list() {
-  local instance="${1:-}" key file type filename target expected actual state directory entry entry_type
+  local instance="${1:-}" inventory kind key type filename expected name version
   elo_require_initialized || return
   [[ -n "$instance" && "$instance" != --* ]] || { elo_die "Usage: elo addons list <instance>"; return; }
   elo_require_instance "$instance" || return
   (($# == 1)) || { elo_die "Usage: elo addons list <instance>"; return; }
-  file="$(elo_addon_registry "$instance")"
+  inventory="$(elo_addons_list_inventory "$instance")" || return
   elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
   printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
-  while IFS= read -r key || [[ -n "$key" ]]; do
-    type="$(elo_kv_get "$file" "${key}_type")"
-    filename="$(elo_kv_get "$file" "${key}_filename")"
-    expected="$(elo_kv_get "$file" "${key}_sha512" || true)"
-    if [[ -z "$filename" || "$filename" == */* || "$filename" == *$'\n'* ]]; then
-      state=missing
-    else
-      target="$(elo_addon_type_dir "$instance" "$type")/$filename" || return
-      state=managed
-      if [[ ! -f "$target" || -L "$target" ]]; then
-        state=missing
-      else
-        actual="$(elo_file_sha512 "$target")" || return
-        [[ -n "$expected" && "$actual" == "$expected" ]] || state=modified
-      fi
-    fi
-    elo_addon_table_row "$key" \
-      "$(elo_kv_get "$file" "${key}_name")" "$type" \
-      "$(elo_kv_get "$file" "${key}_version_number")" "$state" "$filename"
-  done < <(elo_addon_ids "$instance")
-
-  for entry_type in mod resourcepack shader; do
-    directory="$(elo_addon_type_dir "$instance" "$entry_type")"
-    shopt -s nullglob dotglob
-    for entry in "$directory"/*; do
-      [[ -f "$entry" && ! -L "$entry" ]] || continue
-      filename="${entry##*/}"
-      elo_addon_key_by_file "$instance" "$entry_type" "$filename" >/dev/null && continue
-      elo_addon_table_row - "$filename" "$entry_type" - external "$filename"
-    done
-    shopt -u nullglob dotglob
-  done
+  while IFS=$'\t' read -r kind key type filename expected name version || [[ -n "$kind" ]]; do
+    [[ -n "$kind" ]] || continue
+    elo_addons_list_inventory_row \
+      "$instance" "$kind" "$key" "$type" "$filename" "$expected" "$name" "$version" || return
+  done <<<"$inventory"
 }
 
 elo_addon_find_key() {

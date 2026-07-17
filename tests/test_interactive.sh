@@ -89,6 +89,7 @@ elo_test_gum() {
 }
 
 ELO_GUM_COMMAND="elo_test_gum"
+ELO_SCRIPT_DIR="$PROJECT_DIR"
 
 elo_ui_choose_header() {
   printf '%s\n' "$*" >>"$MENUS"
@@ -113,6 +114,9 @@ elo_ui_confirm() {
 clear() {
   :
 }
+
+COLUMNS=100 LINES=30 elo_ui_header full >/dev/null
+assert_contains "$GUM_CALLS" "style --foreground $ELO_UI_WOOD --bold"
 
 elo_provider_available_names() {
   printf '%s\n' modrinth

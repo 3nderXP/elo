@@ -3,6 +3,7 @@
 ```text
 install.sh            install and activate releases
 elo.sh                bootstrap and command dispatch
+assets/branding/elo.asc installed interactive terminal logo
 lib/utils.sh          validation, messages, confirmation
 lib/help.sh           help text
 lib/config.sh         configuration and state persistence

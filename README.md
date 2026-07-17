@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="banner.png" alt="Elo banner">
+  <img src="assets/branding/banner-frame.png" alt="Elo logo with Tux in a Minecraft chest">
 
   <h1>Elo</h1>
 

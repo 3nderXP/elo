@@ -34,7 +34,7 @@ elo_ui_require() {
 }
 
 elo_ui_header() {
-  local active="" columns="" logo_file logo
+  local active="" columns="" logo_file logo="" logo_width=0 required_columns=0
   [[ -f "$ELO_CONFIG_FILE" ]] && active="$(elo_active_instance)"
   logo_file="${ELO_SCRIPT_DIR:-}/assets/branding/elo.asc"
   columns="${COLUMNS:-}"
@@ -42,19 +42,23 @@ elo_ui_header() {
     columns="$(tput cols 2>/dev/null || true)"
   fi
   [[ "$columns" =~ ^[0-9]+$ ]] || columns=80
-  if [[ -r "$logo_file" && "$columns" -ge 44 ]]; then
+  if [[ -r "$logo_file" ]]; then
     logo="$(<"$logo_file")"
+    logo_width="$(awk 'length > width { width = length } END { print width + 0 }' "$logo_file")"
+    required_columns=$((logo_width + 14))
+  fi
+  if [[ -n "$logo" && "$columns" -ge "$required_columns" ]]; then
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_WOOD" --bold \
       --background "$ELO_UI_DARK" --border rounded \
       --border-foreground "$ELO_UI_GRASS" --border-background "$ELO_UI_DARK" \
-      --padding "1 2" \
+      --padding "1 6" \
       "$logo"
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold \
       "Minecraft instance manager"
   else
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --background "$ELO_UI_DARK" \
       --bold --border rounded --border-foreground "$ELO_UI_GRASS" \
-      --border-background "$ELO_UI_DARK" --padding "1 2" \
+      --border-background "$ELO_UI_DARK" --padding "1 6" \
       "Elo" "Minecraft instance manager"
   fi
   if [[ -n "$active" ]]; then

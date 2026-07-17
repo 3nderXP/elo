@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/elo-interactive-tests.XXXXXX")"
+trap 'rm -rf -- "$TEST_ROOT"' EXIT
+
+ELO_HOME="$TEST_ROOT/elo-home"
+ELO_CONFIG_FILE="$ELO_HOME/config.conf"
+ELO_STATE_FILE="$ELO_HOME/state.conf"
+ELO_INSTANCES_DIR="$ELO_HOME/instances"
+ELO_BACKUP_DIR="$ELO_HOME/backups/original"
+ELO_DEFAULT_MANAGED_FOLDERS="mods resourcepacks shaderpacks config"
+
+# shellcheck source=../lib/utils.sh
+source "$PROJECT_DIR/lib/utils.sh"
+# shellcheck source=../lib/config.sh
+source "$PROJECT_DIR/lib/config.sh"
+# shellcheck source=../lib/provider.sh
+source "$PROJECT_DIR/lib/provider.sh"
+# shellcheck source=../lib/interactive.sh
+source "$PROJECT_DIR/lib/interactive.sh"
+ELO_UI_CACHE_ROOT="$TEST_ROOT"
+ELO_UI_CACHE_DIR="$TEST_ROOT/elo-ui.test"
+mkdir -p -- "$ELO_UI_CACHE_DIR"
+
+mkdir -p -- "$ELO_INSTANCES_DIR/alpha"
+: >"$ELO_CONFIG_FILE"
+elo_config_set ACTIVE_INSTANCE alpha
+elo_config_set PREFERRED_PROVIDER modrinth
+
+RESPONSES="$TEST_ROOT/responses"
+CALLS="$TEST_ROOT/calls"
+MENUS="$TEST_ROOT/menus"
+GUM_CALLS="$TEST_ROOT/gum-calls"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+assert_contains() {
+  local file="$1" expected="$2"
+  grep -F -- "$expected" "$file" >/dev/null || fail "$file does not contain '$expected'"
+}
+
+assert_call() {
+  local expected="$1" actual
+  actual="$(cat "$CALLS")"
+  [[ "$actual" == "$expected" ]] || {
+    printf 'expected call:\n%s\nactual call:\n%s\n' "$expected" "$actual" >&2
+    fail "interactive command arguments differ"
+  }
+}
+
+elo_test_queue() {
+  : >"$RESPONSES"
+  while (($# > 0)); do
+    printf '%s\n' "$1" >>"$RESPONSES"
+    shift
+  done
+}
+
+elo_test_response() {
+  local response temp
+  response="$(sed -n '1p' "$RESPONSES")"
+  temp="$RESPONSES.tmp"
+  sed '1d' "$RESPONSES" >"$temp"
+  mv -- "$temp" "$RESPONSES"
+  printf '%s\n' "$response"
+}
+
+elo_test_gum() {
+  local command="$1" argument file=""
+  shift
+  printf '%s %s\n' "$command" "$*" >>"$GUM_CALLS"
+  case "$command" in
+    table)
+      while (($# > 0)); do
+        argument="$1"
+        shift
+        if [[ "$argument" == "--file" ]]; then file="$1"; shift; fi
+      done
+      cat -- "$file"
+      ;;
+    file) elo_test_response ;;
+  esac
+}
+
+ELO_GUM_COMMAND="elo_test_gum"
+ELO_SCRIPT_DIR="$PROJECT_DIR"
+
+elo_ui_choose_header() {
+  printf '%s\n' "$*" >>"$MENUS"
+  elo_test_response
+}
+
+elo_ui_choose_header_selected() {
+  local header="$1" selected="$2"
+  shift 2
+  printf '%s selected=%s %s\n' "$header" "$selected" "$*" >>"$MENUS"
+  elo_test_response
+}
+
+elo_ui_input() {
+  elo_test_response
+}
+
+elo_ui_confirm() {
+  [[ "$(elo_test_response)" == "yes" ]]
+}
+
+clear() {
+  :
+}
+
+COLUMNS=100 elo_ui_header >/dev/null
+assert_contains "$GUM_CALLS" "style --foreground $ELO_UI_WOOD --bold"
+assert_contains "$GUM_CALLS" "--border rounded --border-foreground $ELO_UI_GRASS"
+assert_contains "$GUM_CALLS" "--background $ELO_UI_DARK"
+assert_contains "$GUM_CALLS" "--padding 1 6"
+assert_contains "$GUM_CALLS" "$(sed -n '1p' "$PROJECT_DIR/assets/branding/elo.asc")"
+
+elo_provider_available_names() {
+  printf '%s\n' modrinth
+}
+
+elo_provider_modrinth_project_type() {
+  case "$1" in
+    psx-core) printf '%s\n' shader ;;
+    *) printf '%s\n' mod ;;
+  esac
+}
+
+elo_test_record() {
+  : >"$CALLS"
+  while (($# > 0)); do
+    printf '%s\n' "$1" >>"$CALLS"
+    shift
+  done
+}
+
+elo_cmd_search() { elo_test_record search "$@"; }
+elo_search_page() {
+  local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
+  if [[ "$offset" == "0" ]]; then
+    elo_test_record search "$provider" "$query" "$type" "$instance" "$limit" "$offset"
+  fi
+  printf '%s\n' "$offset" >>"$TEST_ROOT/search-offsets"
+  printf '60\nsodium01\tsodium\tmod\tSodium\t42\n'
+}
+elo_cmd_install() { elo_test_record install "$@"; }
+elo_cmd_adopt() { elo_test_record adopt "$@"; }
+elo_cmd_addon_remove() { elo_test_record remove "$@"; }
+elo_cmd_link() { elo_test_record activate "$@"; }
+elo_cmd_provider() {
+  elo_test_record provider "$@"
+  if [[ "${1:-}" == "list" ]]; then
+    printf 'AVAILABLE PROVIDERS\nmodrinth\n'
+  fi
+}
+elo_cmd_update() { elo_test_record update "$@"; }
+elo_cmd_uninstall() { elo_test_record uninstall "$@"; }
+elo_cmd_list() {
+  elo_test_record instances-list "$@"
+  printf 'NAME VERSION LOADER STATUS\nalpha 1.21 fabric active\n'
+}
+elo_cmd_addons_list() {
+  elo_test_record addons-list "$@"
+  printf 'SOURCE NAME TYPE VERSION STATE FILE\n------\n- sodium mod 1.0 external sodium.jar\n'
+}
+elo_addons_list_inventory() {
+  elo_test_record addons-list "$@"
+  printf 'external\tmod\tsodium.jar\n'
+}
+elo_addons_list_inventory_page() {
+  printf 'SOURCE NAME TYPE VERSION STATE FILE\n------\n- sodium mod 1.0 external sodium.jar\n'
+}
+elo_test_lazy_loader() {
+  local page="$1"
+  printf 'HEADER\npage-%s\n' "$page"
+}
+
+: >"$TEST_ROOT/search-offsets"
+elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
+elo_ui_search >/dev/null
+assert_call $'search\nmodrinth\nsodium\nmod\nalpha\n25\n0'
+assert_contains "$TEST_ROOT/search-offsets" 0
+
+: >"$TEST_ROOT/search-offsets"
+elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Last Back
+elo_ui_search >/dev/null
+assert_contains "$TEST_ROOT/search-offsets" 50
+
+elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
+elo_ui_install
+assert_call $'install\nalpha\nsodium\n--dry-run'
+
+elo_test_queue alpha psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
+elo_ui_install
+assert_call $'install\nalpha\npsx-core\n--platform\niris\n--dry-run'
+
+elo_test_queue alpha "Replace existing directories permanently"
+elo_ui_activate
+assert_call $'activate\nalpha\n--mode\nreplace'
+
+elo_test_queue alpha Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar"
+elo_ui_adopt
+assert_call $'adopt\nalpha\nmods/manual.jar'
+
+elo_test_queue alpha "Exact relative file path" Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar" yes
+elo_ui_remove_addon
+assert_call $'remove\nalpha\n--file\nmods/manual.jar\n--remove-orphans'
+assert_contains "$GUM_CALLS" "file $ELO_INSTANCES_DIR/alpha/mods --file"
+
+elo_test_queue "Change preferred provider" modrinth
+elo_ui_provider
+assert_call $'provider\nset\nmodrinth'
+
+elo_test_queue "Specific version" v1.2.3
+elo_ui_update
+assert_call $'update\n--version\nv1.2.3'
+
+elo_test_queue "Uninstall and permanently delete all data"
+elo_ui_uninstall
+assert_call $'uninstall\n--purge'
+
+elo_test_queue "List instances" Back
+elo_ui_instances_menu >/dev/null
+assert_call instances-list
+
+elo_test_queue "List addons" alpha Back
+elo_ui_addons_menu >/dev/null
+assert_call $'addons-list\nalpha'
+
+elo_test_queue "List available providers" Back
+elo_ui_provider >/dev/null
+assert_call $'provider\nlist'
+
+: >"$MENUS"
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Next Next Previous Back
+elo_ui_paginate "Test results" 1 "0" $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/pages"
+assert_contains "$TEST_ROOT/pages" one
+assert_contains "$TEST_ROOT/pages" five
+assert_contains "$MENUS" "Navigate results selected=Next Next Last Back"
+assert_contains "$MENUS" "Navigate results selected=Next First Previous Next Last Back"
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Back"
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Next Last Back"
+[[ -f "$ELO_UI_CACHE_DIR/page-0" ]] || fail "previous page was not cached"
+[[ -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "current page was not cached"
+[[ -f "$ELO_UI_CACHE_DIR/page-2" ]] || fail "next page was not cached"
+ELO_UI_PAGE_SIZE=10
+
+: >"$MENUS"
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Last First Back
+elo_ui_paginate "Jump results" 1 "0" $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/jump-pages"
+assert_contains "$TEST_ROOT/jump-pages" one
+assert_contains "$TEST_ROOT/jump-pages" five
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Back"
+ELO_UI_PAGE_SIZE=10
+
+elo_test_queue Back
+elo_ui_paginate "Refreshed results" 1 "0" $'HEADER\nfresh' >/dev/null
+[[ ! -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "a new listing did not invalidate old pages"
+assert_contains "$ELO_UI_CACHE_DIR/page-0" fresh
+
+elo_ui_cache_reset
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Next Back
+elo_ui_lazy_paginate "Lazy results" 3 2 1 "0" elo_test_lazy_loader >/dev/null
+assert_contains "$ELO_UI_CACHE_DIR/page-0" page-0
+assert_contains "$ELO_UI_CACHE_DIR/page-1" page-1
+assert_contains "$GUM_CALLS" "table --print"
+ELO_UI_ACTIVE=1
+ELO_INSTALL_PLAN_LINES=$'addon\tPSX-Core Shader\t0.1.6\tshader\tdownload'
+elo_install_plan_print alpha psx-core >/dev/null
+elo_ui_status_table $'mods\talpha\t-\tok' >/dev/null
+ELO_UI_ACTIVE=0
+assert_contains "$GUM_CALLS" "install-plan.tsv"
+assert_contains "$GUM_CALLS" "status.tsv"
+ELO_UI_PAGE_SIZE=10
+
+: >"$MENUS"
+elo_test_queue Back
+elo_ui_instances_menu
+elo_test_queue Back
+elo_ui_addons_menu
+elo_test_queue Back
+elo_ui_system_menu
+elo_test_queue Addons Back
+elo_ui_help
+elo_test_queue Instances Back
+elo_ui_help
+
+for label in \
+  "Create instance" "Activate or switch instance" "Reset managed links" \
+  "Search addons" "Install addon" "Adopt external addon" "Remove addon" \
+  "Provider settings" "Status" "Update Elo" "Uninstall Elo" \
+  "Search Install List Adopt Remove Provider" \
+  "Create Activate Reset List Remove"; do
+  assert_contains "$MENUS" "$label"
+done
+
+printf 'ok 1 - interactive UI delegates all CLI operations and options\n'

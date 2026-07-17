@@ -25,6 +25,7 @@ ELO_INSTALL_FILES=(
   "lib/provider_modrinth.sh"
   "lib/provider.sh"
   "lib/interactive.sh"
+  "assets/branding/elo.asc"
 )
 
 install_info() {
@@ -271,10 +272,11 @@ install_activate_release() {
     install_die "Path $command_path exists and will not be overwritten."
   fi
 
-  mkdir -p "$release/lib" "$ELO_BIN_DIR"
+  mkdir -p "$release/lib" "$release/assets/branding" "$ELO_BIN_DIR"
   install_write_config
   cp "$stage/elo.sh" "$release/elo.sh"
   cp "$stage"/lib/*.sh "$release/lib/"
+  cp "$stage/assets/branding/elo.asc" "$release/assets/branding/elo.asc"
   chmod +x "$release/elo.sh"
 
   ln -sfn "$release" "$current"

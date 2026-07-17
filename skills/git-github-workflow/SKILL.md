@@ -10,9 +10,12 @@ and authorization boundaries.
 
 ## Required preparation
 
-1. Inspect the current branch. For a new task, create its branch with
-   `git switch -c <type>/<task> develop` only when the current branch is
-   `develop`. On any other branch, stop and ask the user how to proceed.
+1. Inspect the current branch, working tree, upstream, and remotes. For a new
+   task on a clean `develop`, run and verify
+   `git pull --ff-only <remote> develop` using its configured remote, then
+   create the task branch with `git switch -c <type>/<task> develop`. On a dirty
+   tree, divergence, missing upstream, failed pull, or any other branch, stop
+   and ask the user how to proceed.
 2. Read [Git safety](references/git-safety.md).
 3. Read [GitHub workflow](references/github.md) for remote operations.
 4. Read [Versioning and releases](references/releases.md) for release work.
@@ -35,5 +38,6 @@ releases, merge, rebase, revert, force push, and SemVer implications.
 - Tag only releasable commits after their merge into `main`.
 - Validate tests and repository state before releases.
 - Keep branch, commit, PR, tag, and release text in English.
-- Every new LLM task uses a new branch based on `develop`; never silently
-  switch, rebase, or reuse a non-`develop` branch.
+- Every new LLM task uses a new branch based on freshly fast-forwarded
+  `develop`; never silently stash, switch, pull, merge, rebase, or reuse a
+  non-`develop` branch.

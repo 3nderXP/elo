@@ -3,6 +3,7 @@
 ```text
 install.sh            install and activate releases
 elo.sh                bootstrap and command dispatch
+assets/branding/elo.asc installed interactive terminal logo
 lib/utils.sh          validation, messages, confirmation
 lib/help.sh           help text
 lib/config.sh         configuration and state persistence
@@ -26,7 +27,9 @@ self-uninstall commands parse this file as data. The update command delegates
 staged download, validation, and atomic activation to the target release's
 installer.
 
-Provider modules implement `search`, `resolve`, `get_dependencies`, and
-`download` functions. The provider manager owns CLI behavior, recursive
-dependency coordination, and `addons.conf`; provider-specific modules do not
-write runtime state.
+Provider modules implement `search`, paginated `search_page`, `project_type`,
+`resolve`, `get_dependencies`, and `download` functions. Paginated search
+returns the provider's total hit count before its result rows. The provider
+manager owns CLI behavior, recursive dependency coordination, `addons.conf`,
+and derived addon integrity caches; provider-specific modules do not write
+runtime state.

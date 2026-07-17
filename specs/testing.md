@@ -18,8 +18,8 @@ that interactive menus expose the CLI operations and delegate their selected
 options to the existing command handlers. It also covers paginated list wiring,
 page boundaries, contextual Previous/Next navigation, adjacent-page snapshots,
 First/Last jumps, cursor memory, lazy provider and addon pages, background
-prefetch, and cache invalidation. It does not contact providers or access a
-real terminal.
+prefetch, cache invalidation, native table rendering, and native addon-file
+selection. It does not contact providers or access a real terminal.
 
 Tests must use temporary `ELO_HOME` and `.minecraft` roots, remain offline, and
 clean only their own temporary data.

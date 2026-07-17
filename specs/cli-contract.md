@@ -40,6 +40,13 @@ when those pages exist, `First` and `Last` for direct boundary jumps, plus
 when that action remains available. Direct CLI output is not paginated and
 remains suitable for pipes and automation.
 
+Interactive lists use static `gum table` rendering with one shared rounded
+layout and a muted Minecraft-inspired palette: grass green for focus and
+actions, sky blue for structure, and wood brown for selection and context.
+Other Gum controls use the same palette. Addon adoption and exact-file removal
+use `gum file`, rooted in the selected instance's valid addon directory; the
+command handlers still enforce path and file-safety rules.
+
 Before the first interactive page is shown, Gum displays a loading spinner.
 Search, instance, and provider lists build a fresh session snapshot and derive
 the current and adjacent pages from it by numeric index. Addon listing first

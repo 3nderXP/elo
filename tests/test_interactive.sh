@@ -21,7 +21,6 @@ source "$PROJECT_DIR/lib/config.sh"
 source "$PROJECT_DIR/lib/provider.sh"
 # shellcheck source=../lib/interactive.sh
 source "$PROJECT_DIR/lib/interactive.sh"
-ELO_GUM_COMMAND="true"
 ELO_UI_CACHE_ROOT="$TEST_ROOT"
 ELO_UI_CACHE_DIR="$TEST_ROOT/elo-ui.test"
 mkdir -p -- "$ELO_UI_CACHE_DIR"
@@ -34,6 +33,7 @@ elo_config_set PREFERRED_PROVIDER modrinth
 RESPONSES="$TEST_ROOT/responses"
 CALLS="$TEST_ROOT/calls"
 MENUS="$TEST_ROOT/menus"
+GUM_CALLS="$TEST_ROOT/gum-calls"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -70,6 +70,25 @@ elo_test_response() {
   mv -- "$temp" "$RESPONSES"
   printf '%s\n' "$response"
 }
+
+elo_test_gum() {
+  local command="$1" argument file=""
+  shift
+  printf '%s %s\n' "$command" "$*" >>"$GUM_CALLS"
+  case "$command" in
+    table)
+      while (($# > 0)); do
+        argument="$1"
+        shift
+        if [[ "$argument" == "--file" ]]; then file="$1"; shift; fi
+      done
+      cat -- "$file"
+      ;;
+    file) elo_test_response ;;
+  esac
+}
+
+ELO_GUM_COMMAND="elo_test_gum"
 
 elo_ui_choose_header() {
   printf '%s\n' "$*" >>"$MENUS"
@@ -167,13 +186,14 @@ elo_test_queue alpha "Replace existing directories permanently"
 elo_ui_activate
 assert_call $'activate\nalpha\n--mode\nreplace'
 
-elo_test_queue alpha mods/manual.jar
+elo_test_queue alpha Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar"
 elo_ui_adopt
 assert_call $'adopt\nalpha\nmods/manual.jar'
 
-elo_test_queue alpha "Exact relative file path" mods/manual.jar yes
+elo_test_queue alpha "Exact relative file path" Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar" yes
 elo_ui_remove_addon
 assert_call $'remove\nalpha\n--file\nmods/manual.jar\n--remove-orphans'
+assert_contains "$GUM_CALLS" "file $ELO_INSTANCES_DIR/alpha/mods --file"
 
 elo_test_queue "Change preferred provider" modrinth
 elo_ui_provider
@@ -202,7 +222,7 @@ assert_call $'provider\nlist'
 : >"$MENUS"
 ELO_UI_PAGE_SIZE=2
 elo_test_queue Next Next Previous Back
-elo_ui_paginate "Test results" 1 $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/pages"
+elo_ui_paginate "Test results" 1 "0" $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/pages"
 assert_contains "$TEST_ROOT/pages" one
 assert_contains "$TEST_ROOT/pages" five
 assert_contains "$MENUS" "Navigate results selected=Next Next Last Back"
@@ -217,23 +237,24 @@ ELO_UI_PAGE_SIZE=10
 : >"$MENUS"
 ELO_UI_PAGE_SIZE=2
 elo_test_queue Last First Back
-elo_ui_paginate "Jump results" 1 $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/jump-pages"
+elo_ui_paginate "Jump results" 1 "0" $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/jump-pages"
 assert_contains "$TEST_ROOT/jump-pages" one
 assert_contains "$TEST_ROOT/jump-pages" five
 assert_contains "$MENUS" "Navigate results selected=Previous First Previous Back"
 ELO_UI_PAGE_SIZE=10
 
 elo_test_queue Back
-elo_ui_paginate "Refreshed results" 1 $'HEADER\nfresh' >/dev/null
+elo_ui_paginate "Refreshed results" 1 "0" $'HEADER\nfresh' >/dev/null
 [[ ! -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "a new listing did not invalidate old pages"
 assert_contains "$ELO_UI_CACHE_DIR/page-0" fresh
 
 elo_ui_cache_reset
 ELO_UI_PAGE_SIZE=2
 elo_test_queue Next Back
-elo_ui_lazy_paginate "Lazy results" 3 2 elo_test_lazy_loader >/dev/null
+elo_ui_lazy_paginate "Lazy results" 3 2 1 "0" elo_test_lazy_loader >/dev/null
 assert_contains "$ELO_UI_CACHE_DIR/page-0" page-0
 assert_contains "$ELO_UI_CACHE_DIR/page-1" page-1
+assert_contains "$GUM_CALLS" "table --print"
 ELO_UI_PAGE_SIZE=10
 
 : >"$MENUS"

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-ELO_UI_ACCENT="212"
+ELO_UI_GRASS="#84A66A"
+ELO_UI_WOOD="#9A7252"
+ELO_UI_SKY="#78A9C4"
+ELO_UI_TEXT="#F1F3EE"
+ELO_UI_MUTED="#9AA7A0"
+ELO_UI_DARK="#18211B"
 ELO_GUM_COMMAND=""
 ELO_UI_PAGE_SIZE=10
 ELO_UI_SKIP_PAUSE=0
@@ -30,11 +35,11 @@ elo_ui_require() {
 elo_ui_header() {
   local active=""
   [[ -f "$ELO_CONFIG_FILE" ]] && active="$(elo_active_instance)"
-  "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold --border rounded \
-    --border-foreground "$ELO_UI_ACCENT" --padding "0 2" \
+  "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold --border rounded \
+    --border-foreground "$ELO_UI_GRASS" --padding "0 2" \
     "Elo" "Minecraft instance manager"
   if [[ -n "$active" ]]; then
-    "$ELO_GUM_COMMAND" style --foreground 245 "Active instance: $active"
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_WOOD" "Active instance: $active"
   fi
   printf '\n'
 }
@@ -45,15 +50,17 @@ elo_ui_pause() {
 }
 
 elo_ui_choose() {
-  "$ELO_GUM_COMMAND" choose --cursor "› " --cursor.foreground "$ELO_UI_ACCENT" \
-    --selected.foreground "$ELO_UI_ACCENT" --height 14 "$@"
+  "$ELO_GUM_COMMAND" choose --cursor "› " --cursor.foreground "$ELO_UI_GRASS" \
+    --header.foreground "$ELO_UI_SKY" --selected.foreground "$ELO_UI_TEXT" \
+    --selected.background "$ELO_UI_WOOD" --height 14 "$@"
 }
 
 elo_ui_choose_header() {
   local header="$1"
   shift
   "$ELO_GUM_COMMAND" choose --header "$header" --cursor "› " \
-    --cursor.foreground "$ELO_UI_ACCENT" --selected.foreground "$ELO_UI_ACCENT" \
+    --cursor.foreground "$ELO_UI_GRASS" --header.foreground "$ELO_UI_SKY" \
+    --selected.foreground "$ELO_UI_TEXT" --selected.background "$ELO_UI_WOOD" \
     --height 14 "$@"
 }
 
@@ -61,19 +68,57 @@ elo_ui_choose_header_selected() {
   local header="$1" selected="$2"
   shift 2
   "$ELO_GUM_COMMAND" choose --header "$header" --selected "$selected" \
-    --cursor "› " --cursor.foreground "$ELO_UI_ACCENT" \
-    --selected.foreground "$ELO_UI_ACCENT" --height 14 "$@"
+    --cursor "› " --cursor.foreground "$ELO_UI_GRASS" \
+    --header.foreground "$ELO_UI_SKY" --selected.foreground "$ELO_UI_TEXT" \
+    --selected.background "$ELO_UI_WOOD" --height 14 "$@"
 }
 
 elo_ui_input() {
   local prompt="$1" placeholder="${2:-}" value="${3:-}"
-  "$ELO_GUM_COMMAND" input --prompt "$prompt: " --prompt.foreground "$ELO_UI_ACCENT" \
+  "$ELO_GUM_COMMAND" input --prompt "$prompt: " --prompt.foreground "$ELO_UI_GRASS" \
+    --placeholder.foreground "$ELO_UI_MUTED" --cursor.foreground "$ELO_UI_SKY" \
     --placeholder "$placeholder" --value "$value" --width 60
 }
 
 elo_ui_confirm() {
-  "$ELO_GUM_COMMAND" confirm --prompt.foreground "$ELO_UI_ACCENT" \
-    --selected.background "$ELO_UI_ACCENT" "$1"
+  "$ELO_GUM_COMMAND" confirm --prompt.foreground "$ELO_UI_SKY" \
+    --selected.foreground "$ELO_UI_DARK" --selected.background "$ELO_UI_GRASS" "$1"
+}
+
+elo_ui_file() {
+  local header="$1" directory="$2"
+  "$ELO_GUM_COMMAND" file "$directory" --file \
+    --header "$header" --height 14 --cursor "› " \
+    --cursor.foreground "$ELO_UI_GRASS" --header.foreground "$ELO_UI_SKY" \
+    --directory.foreground "$ELO_UI_SKY" --symlink.foreground "$ELO_UI_WOOD" \
+    --selected.foreground "$ELO_UI_TEXT" --selected.background "$ELO_UI_WOOD" \
+    --permissions.foreground "$ELO_UI_MUTED" --file-size.foreground "$ELO_UI_MUTED"
+}
+
+elo_ui_render_table() {
+  local source="$1" header_count="$2" widths="$3" table_file tab
+  table_file="$ELO_UI_CACHE_DIR/render-table.tsv"
+  tab=$'\t'
+  awk -v header_count="$header_count" -v widths="$widths" '
+    BEGIN { count = split(widths, width, ",") }
+    NR > 1 && NR <= header_count { next }
+    {
+      start = 1
+      for (column = 1; column <= count; column++) {
+        if (width[column] == 0) value = substr($0, start)
+        else value = substr($0, start, width[column])
+        sub(/^[[:space:]]+/, "", value)
+        sub(/[[:space:]]+$/, "", value)
+        printf "%s%s", column == 1 ? "" : "\t", value
+        start += width[column] + 1
+      }
+      printf "\n"
+    }
+  ' "$source" >"$table_file"
+  "$ELO_GUM_COMMAND" table --print --file "$table_file" --separator "$tab" \
+    --border rounded --border.foreground "$ELO_UI_SKY" \
+    --header.foreground "$ELO_UI_GRASS" --header.background "$ELO_UI_DARK" \
+    --cell.foreground "$ELO_UI_TEXT" --cell.background "$ELO_UI_DARK"
 }
 
 elo_ui_navigation_action() {
@@ -139,7 +184,7 @@ elo_ui_cache_reset() {
 elo_ui_wait_for_status() {
   local title="$1" status_file="$2" pid="$3"
   if ! "$ELO_GUM_COMMAND" spin --spinner dot \
-    --spinner.foreground "$ELO_UI_ACCENT" --title.foreground "$ELO_UI_ACCENT" \
+    --spinner.foreground "$ELO_UI_GRASS" --title.foreground "$ELO_UI_SKY" \
     --title "$title" -- sh -c \
     'while [ ! -f "$1" ]; do sleep 0.1; done' sh "$status_file"; then
     kill "$pid" >/dev/null 2>&1 || true
@@ -176,7 +221,7 @@ elo_ui_cache_adjacent_pages() {
 }
 
 elo_ui_paginate_snapshot() {
-  local title="$1" header_count="$2" snapshot="$3"
+  local title="$1" header_count="$2" snapshot="$3" widths="$4"
   local page=0 line_count data_count total_pages action last_action=Next
   local -a actions
   line_count="$(wc -l <"$snapshot")"
@@ -189,11 +234,11 @@ elo_ui_paginate_snapshot() {
   while true; do
     clear
     elo_ui_header
-    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold \
       "$title — Page $((page + 1)) of $total_pages"
     printf '\n'
     elo_ui_cache_adjacent_pages "$snapshot" "$header_count" "$page" "$total_pages" || return
-    cat -- "$ELO_UI_CACHE_DIR/page-$page"
+    elo_ui_render_table "$ELO_UI_CACHE_DIR/page-$page" "$header_count" "$widths"
     printf '\n'
 
     actions=()
@@ -213,11 +258,11 @@ elo_ui_paginate_snapshot() {
 }
 
 elo_ui_paginate() {
-  local title="$1" header_count="$2" output="$3" snapshot
+  local title="$1" header_count="$2" widths="$3" output="$4" snapshot
   elo_ui_cache_reset || return
   snapshot="$ELO_UI_CACHE_DIR/snapshot"
   printf '%s\n' "$output" >"$snapshot"
-  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot"
+  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot" "$widths"
 }
 
 elo_ui_run_with_spinner() {
@@ -285,10 +330,10 @@ elo_ui_lazy_page_ensure() {
 }
 
 elo_ui_lazy_paginate() {
-  local title="$1" item_count="$2" page_size="$3" loader="$4"
+  local title="$1" item_count="$2" page_size="$3" header_count="$4" widths="$5" loader="$6"
   local page=0 total_pages action last_action=Next
   local -a actions
-  shift 4
+  shift 6
   total_pages=$(((item_count + page_size - 1) / page_size))
   ((total_pages == 0)) && total_pages=1
   ELO_UI_SKIP_PAUSE=1
@@ -296,10 +341,10 @@ elo_ui_lazy_paginate() {
     elo_ui_lazy_page_ensure "$title" "$page" "$page_size" "$loader" "$@" || return
     clear
     elo_ui_header
-    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold \
       "$title — Page $((page + 1)) of $total_pages"
     printf '\n'
-    cat -- "$ELO_UI_CACHE_DIR/page-$page"
+    elo_ui_render_table "$ELO_UI_CACHE_DIR/page-$page" "$header_count" "$widths"
     printf '\n'
     ((page > 0)) && elo_ui_lazy_page_start "$((page - 1))" "$page_size" "$loader" "$@"
     ((page + 1 < total_pages)) && elo_ui_lazy_page_start "$((page + 1))" "$page_size" "$loader" "$@"
@@ -348,8 +393,8 @@ elo_ui_search_page_loader() {
 }
 
 elo_ui_paginated_command() {
-  local title="$1" header_count="$2" snapshot errors status_file
-  shift 2
+  local title="$1" header_count="$2" widths="$3" snapshot errors status_file
+  shift 3
   elo_ui_cache_reset || return
   snapshot="$ELO_UI_CACHE_DIR/snapshot"
   errors="$ELO_UI_CACHE_DIR/errors"
@@ -357,7 +402,7 @@ elo_ui_paginated_command() {
   if ! elo_ui_run_with_spinner "Loading $title..." "$snapshot" "$errors" "$status_file" "$@"; then
     return 1
   fi
-  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot"
+  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot" "$widths"
 }
 
 elo_ui_instances() {
@@ -489,7 +534,7 @@ elo_ui_search() {
     return 1
   }
   elo_ui_lazy_paginate "Search results" "$total" "$page_size" \
-    elo_ui_search_page_loader "$provider" "$query" "$type" "$instance"
+    1 "10,20,12,36,0" elo_ui_search_page_loader "$provider" "$query" "$type" "$instance"
 }
 
 elo_ui_install() {
@@ -517,13 +562,38 @@ elo_ui_addons_list() {
     "$inventory" "$errors" "$status_file" elo_addons_list_inventory "$instance" || return
   item_count="$(wc -l <"$inventory")"
   elo_ui_lazy_paginate "Addons in $instance" "$item_count" "$ELO_UI_PAGE_SIZE" \
-    elo_ui_addons_page_loader "$instance" "$inventory"
+    2 "22,36,12,24,10,0" elo_ui_addons_page_loader "$instance" "$inventory"
+}
+
+elo_ui_select_addon_file() {
+  local instance="$1" purpose="$2" category directory instance_directory selected
+  instance_directory="$ELO_INSTANCES_DIR/$instance"
+  category="$(elo_ui_choose_header "Addon category" "Mods" "Resource packs" "Shaders")" || return
+  case "$category" in
+    Mods) directory="mods" ;;
+    "Resource packs") directory="resourcepacks" ;;
+    Shaders) directory="shaderpacks" ;;
+  esac
+  selected="$(elo_ui_file "$purpose" "$instance_directory/$directory")" || return
+  [[ -n "$selected" ]] || return 1
+  case "$selected" in
+    "$instance_directory/$directory"/*)
+      printf '%s/%s\n' "$directory" "${selected#"$instance_directory/$directory"/}"
+      ;;
+    /*)
+      elo_warn "The selected file is outside the addon directory."
+      return 1
+      ;;
+    "$directory"/*) printf '%s\n' "$selected" ;;
+    ./*) printf '%s/%s\n' "$directory" "${selected#./}" ;;
+    *) printf '%s/%s\n' "$directory" "$selected" ;;
+  esac
 }
 
 elo_ui_adopt() {
   local instance relative
   instance="$(elo_ui_select_instance "Adopt a file from which instance?")" || return 0
-  relative="$(elo_ui_input "Relative addon path" "mods/example.jar")" || return 0
+  relative="$(elo_ui_select_addon_file "$instance" "Select the external addon to adopt")" || return 0
   [[ -n "$relative" ]] || return 0
   elo_cmd_adopt "$instance" "$relative"
 }
@@ -541,7 +611,7 @@ elo_ui_remove_addon() {
       provider="$(elo_ui_select_provider "Addon provider")" || return 0
       ;;
     *)
-      relative="$(elo_ui_input "Relative addon path" "mods/example.jar")" || return 0
+      relative="$(elo_ui_select_addon_file "$instance" "Select the addon file to remove")" || return 0
       [[ -n "$relative" ]] || return 0
       ;;
   esac
@@ -562,7 +632,7 @@ elo_ui_provider() {
   case "$action" in
     "Show preferred provider") elo_cmd_provider show ;;
     "List available providers")
-      elo_ui_paginated_command "Available providers" 1 elo_cmd_provider list
+      elo_ui_paginated_command "Available providers" 1 "0" elo_cmd_provider list
       ;;
     "Change preferred provider")
       elo_ui_providers
@@ -646,7 +716,7 @@ elo_ui_instances_menu() {
   case "$action" in
     "Create instance") elo_ui_new ;;
     "Activate or switch instance") elo_ui_activate ;;
-    "List instances") elo_ui_paginated_command "Instances" 1 elo_cmd_list ;;
+    "List instances") elo_ui_paginated_command "Instances" 1 "24,12,12,0" elo_cmd_list ;;
     "Reset managed links") elo_cmd_reset ;;
     "Remove instance") elo_ui_remove_instance ;;
   esac

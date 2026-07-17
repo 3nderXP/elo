@@ -159,13 +159,20 @@ optionally select its type, compatibility instance, provider, and result limit.
 Search results and other guided lists show 10 items per page with
 **First**/**Previous**/**Next**/**Last** navigation. Search retrieves provider
 pages on demand, so the chosen page size does not limit the total matching
-results. Gum keeps the last navigation action selected between page renders.
+results. Native Gum tables give instance, addon, provider, and search lists one
+consistent layout. Gum keeps the last navigation action selected between page
+renders.
 Direct commands continue to print complete lists without interactive
 pagination.
 The interface shows a loading animation while it prepares a new list. Addon
 validation is lazy: the current page is checked first, the next page loads in
 the background, and visited pages remain cached for instant navigation.
 Starting another list refreshes the temporary cache.
+
+When adopting an external addon or removing one by its exact path, choose its
+category and select the file in Gum's directory browser. The browser starts in
+the corresponding instance addon directory, while Elo's existing safety checks
+still validate the final selection.
 
 Integrity results also persist by instance. Unchanged files reuse their cached
 status, while new, missing, or metadata-changed files are validated directly.

@@ -173,17 +173,21 @@ Usage:
   elo addons search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
 
 Search public provider projects. Types: mod, resourcepack, shader. When no
-instance is given, the active instance supplies version and loader filters.
+instance is given, the active instance supplies compatibility filters. Its mod
+loader filters only mod results; shaders use the game version without inheriting
+Fabric, Forge, NeoForge, or Quilt.
 EOF
 }
 
 elo_help_addons_install() {
   cat <<'EOF'
 Usage:
-  elo addons install <instance> <id-or-slug> [--provider <provider>] [--dry-run] [--yes]
+  elo addons install <instance> <id-or-slug> [--provider <provider>] [--platform iris|optifine] [--dry-run] [--yes]
 
 Resolve a compatible addon and required dependencies. Existing matching files
-are verified and reused; different content is never overwritten.
+are verified and reused; different content is never overwritten. Shader
+installation requires --platform iris or --platform optifine for an explicit
+per-installation compatibility choice.
 EOF
 }
 

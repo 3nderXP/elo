@@ -26,7 +26,7 @@ elo_provider_modrinth_search_response() {
   if [[ -n "$game_version" && "$game_version" != "unknown" ]]; then
     facets="$(printf '%s' "$facets" | jq -c --arg value "versions:$game_version" '. + [[$value]]')"
   fi
-  if [[ -n "$loader" && "$loader" != "unknown" && "$loader" != "vanilla" ]]; then
+  if [[ "$type" == "mod" && -n "$loader" && "$loader" != "unknown" && "$loader" != "vanilla" ]]; then
     facets="$(printf '%s' "$facets" | jq -c --arg value "categories:$loader" '. + [[$value]]')"
   fi
 
@@ -52,11 +52,31 @@ elo_provider_modrinth_search_page() {
     (.hits[] | [.project_id, .slug, .project_type, .title, (.downloads | tostring)] | @tsv)'
 }
 
+elo_provider_modrinth_project_type() {
+  local id_or_slug="$1" project
+  project="$(elo_provider_modrinth_request "/project/$id_or_slug")" || return
+  printf '%s' "$project" | jq -r '.project_type'
+}
+
 elo_provider_modrinth_resolve() {
-  local id_or_slug="$1" game_version="$2" loader="$3" requested_version="${4:-}"
-  local project versions version_args=()
+  local id_or_slug="$1" game_version="$2" loader="$3" requested_version="${4:-}" platform="${5:-}"
+  local project project_type compatibility_loader="" versions version_args=()
 
   project="$(elo_provider_modrinth_request "/project/$id_or_slug")" || return
+  project_type="$(printf '%s' "$project" | jq -r '.project_type')"
+  if [[ "$project_type" == "shader" && -z "$platform" && -z "$requested_version" ]]; then
+    elo_die "Shader installation requires --platform iris or --platform optifine."
+    return 1
+  fi
+  if [[ -n "$platform" && "$project_type" != "shader" ]]; then
+    elo_die "--platform is supported only for shaders."
+    return 1
+  fi
+  case "$project_type" in
+    mod) compatibility_loader="$loader" ;;
+    resourcepack) compatibility_loader="minecraft" ;;
+    shader) compatibility_loader="$platform" ;;
+  esac
   if [[ -n "$requested_version" ]]; then
     versions="$(elo_provider_modrinth_request "/version/$requested_version")" || return
     versions="[$versions]"
@@ -64,8 +84,8 @@ elo_provider_modrinth_resolve() {
     if [[ -n "$game_version" && "$game_version" != "unknown" ]]; then
       version_args+=(--data-urlencode "game_versions=[\"$game_version\"]")
     fi
-    if [[ -n "$loader" && "$loader" != "unknown" && "$loader" != "vanilla" ]]; then
-      version_args+=(--data-urlencode "loaders=[\"$loader\"]")
+    if [[ -n "$compatibility_loader" && "$compatibility_loader" != "unknown" && "$compatibility_loader" != "vanilla" ]]; then
+      version_args+=(--data-urlencode "loaders=[\"$compatibility_loader\"]")
     fi
     versions="$(elo_provider_modrinth_request "/project/$(printf '%s' "$project" | jq -r '.id')/version" --get "${version_args[@]}")" || return
   fi
@@ -79,7 +99,7 @@ elo_provider_modrinth_resolve() {
         type: $project.project_type, version_id: $version.id,
         version_number: $version.version_number, filename: $file.filename,
         download_url: $file.url, sha512: ($file.hashes.sha512 // ""),
-        dependencies: $version.dependencies
+        dependencies: $version.dependencies, platforms: ($version.loaders // [])
       } end
     end' 2>/dev/null || elo_die "No compatible Modrinth version found for: $id_or_slug"
 }

@@ -19,7 +19,7 @@ elo_provider_call() {
 elo_provider_is_available() {
   local provider="$1" action
   elo_provider_validate_name "$provider" || return
-  for action in search search_page resolve get_dependencies download; do
+  for action in search search_page project_type resolve get_dependencies download; do
     declare -F "elo_provider_${provider}_${action}" >/dev/null 2>&1 || return 1
   done
 }
@@ -367,11 +367,11 @@ elo_install_plan_add_line() {
 }
 
 elo_install_plan_resolve() {
-  local instance="$1" provider="$2" id_or_slug="$3" kind="$4" requested_version="${5:-}"
+  local instance="$1" provider="$2" id_or_slug="$3" kind="$4" requested_version="${5:-}" platform="${6:-}"
   local version loader metadata key status dependencies dep_project dep_version dep_ref
   version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
   loader="$(elo_instance_metadata "$instance" LOADER)"
-  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version")" || return
+  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version" "$platform")" || return
   key="$(elo_addon_key "$provider" "$(printf '%s' "$metadata" | jq -r '.project_id')")"
   [[ "$ELO_INSTALL_PLAN_VISITED" == *"|$key|"* ]] && return 0
   ELO_INSTALL_PLAN_VISITED="$ELO_INSTALL_PLAN_VISITED|$key|"
@@ -396,6 +396,10 @@ elo_install_plan_row() {
 
 elo_install_plan_print() {
   local instance="$1" addon="$2" kind name version type status
+  if [[ "${ELO_UI_ACTIVE:-0}" == "1" ]] && declare -F elo_ui_install_plan_table >/dev/null 2>&1; then
+    elo_ui_install_plan_table "$instance" "$addon" "$ELO_INSTALL_PLAN_LINES"
+    return
+  fi
   printf 'Installation plan for %s in %s:\n\n' "$addon" "$instance"
   elo_install_plan_row KIND NAME VERSION TYPE ACTION
   printf '%s\n' '--------------------------------------------------------------------------------------------------------'
@@ -405,12 +409,12 @@ elo_install_plan_print() {
 }
 
 elo_addon_install_recursive() {
-  local instance="$1" provider="$2" id_or_slug="$3" is_dependency="$4" requested_version="${5:-}"
+  local instance="$1" provider="$2" id_or_slug="$3" is_dependency="$4" requested_version="${5:-}" platform="${6:-}"
   local version loader metadata project_id key type target filename dependencies dep_version dep_project dep_ref
   local expected_hash actual_hash dependency_keys=""
   version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
   loader="$(elo_instance_metadata "$instance" LOADER)"
-  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version")" || return
+  metadata="$(elo_provider_call "$provider" resolve "$id_or_slug" "$version" "$loader" "$requested_version" "$platform")" || return
   project_id="$(printf '%s' "$metadata" | jq -r '.project_id')"
   key="$(elo_addon_key "$provider" "$project_id")"
   [[ "$ELO_ADDON_INSTALL_VISITED" == *"|$key|"* ]] && return 0
@@ -474,7 +478,7 @@ elo_addon_install_recursive() {
 }
 
 elo_cmd_install() {
-  local instance="${1:-}" addon="${2:-}" provider="" dry_run=0
+  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0
   elo_require_initialized || return
   if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug> [options]"; return; fi
   elo_require_instance "$instance" || return
@@ -482,15 +486,20 @@ elo_cmd_install() {
   while (($# > 0)); do
     case "$1" in
       --provider) elo_require_value "$1" "${2:-}" || return; provider="$2"; shift 2 ;;
+      --platform) elo_require_value "$1" "${2:-}" || return; platform="$2"; shift 2 ;;
       --dry-run) dry_run=1; shift ;;
       --yes) ELO_ASSUME_YES=1; shift ;;
       *) elo_die "Invalid option for install: $1"; return ;;
     esac
   done
+  [[ -z "$platform" || "$platform" == "iris" || "$platform" == "optifine" ]] || {
+    elo_die "--platform must be iris or optifine."
+    return 1
+  }
   provider="${provider:-$(elo_preferred_provider)}"
   ELO_INSTALL_PLAN_VISITED=""
   ELO_INSTALL_PLAN_LINES=""
-  elo_install_plan_resolve "$instance" "$provider" "$addon" addon || return
+  elo_install_plan_resolve "$instance" "$provider" "$addon" addon "" "$platform" || return
   elo_install_plan_print "$instance" "$addon"
   if [[ "$ELO_INSTALL_PLAN_LINES" == *$'\tcollision'* ]]; then
     elo_die "Resolve addon file collisions before installation."
@@ -500,7 +509,7 @@ elo_cmd_install() {
   printf '\n'
   elo_confirm "Install '$addon' and required dependencies into '$instance'?" || { elo_warn "Installation cancelled."; return 1; }
   ELO_ADDON_INSTALL_VISITED=""
-  elo_addon_install_recursive "$instance" "$provider" "$addon" false
+  elo_addon_install_recursive "$instance" "$provider" "$addon" false "" "$platform"
 }
 
 elo_addon_registry_inventory() {

@@ -9,6 +9,7 @@ ELO_UI_DARK="#18211B"
 ELO_GUM_COMMAND=""
 ELO_UI_PAGE_SIZE=10
 ELO_UI_SKIP_PAUSE=0
+ELO_UI_ACTIVE=0
 ELO_UI_CACHE_DIR=""
 ELO_UI_CACHE_ROOT=""
 ELO_UI_CACHE_PIDS=""
@@ -115,10 +116,33 @@ elo_ui_render_table() {
       printf "\n"
     }
   ' "$source" >"$table_file"
+  elo_ui_render_tsv_table "$table_file"
+}
+
+elo_ui_render_tsv_table() {
+  local table_file="$1" tab
+  tab=$'\t'
   "$ELO_GUM_COMMAND" table --print --file "$table_file" --separator "$tab" \
     --border rounded --border.foreground "$ELO_UI_SKY" \
     --header.foreground "$ELO_UI_GRASS" --header.background "$ELO_UI_DARK" \
     --cell.foreground "$ELO_UI_TEXT" --cell.background "$ELO_UI_DARK"
+}
+
+elo_ui_install_plan_table() {
+  local instance="$1" addon="$2" lines="$3" table_file
+  table_file="$ELO_UI_CACHE_DIR/install-plan.tsv"
+  printf 'KIND\tNAME\tVERSION\tTYPE\tACTION\n%s\n' "$lines" >"$table_file"
+  "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold \
+    "Installation plan for $addon in $instance"
+  printf '\n'
+  elo_ui_render_tsv_table "$table_file"
+}
+
+elo_ui_status_table() {
+  local lines="$1" table_file
+  table_file="$ELO_UI_CACHE_DIR/status.tsv"
+  printf 'FOLDER\tLINK\tORIGINAL\tSTATE\n%s\n' "$lines" >"$table_file"
+  elo_ui_render_tsv_table "$table_file"
 }
 
 elo_ui_navigation_action() {
@@ -148,6 +172,7 @@ elo_ui_cleanup() {
     "$ELO_UI_CACHE_ROOT"/elo-ui.*) rm -rf -- "$ELO_UI_CACHE_DIR" ;;
   esac
   ELO_UI_CACHE_DIR=""
+  ELO_UI_ACTIVE=0
 }
 
 elo_ui_cache_stop_jobs() {
@@ -538,15 +563,25 @@ elo_ui_search() {
 }
 
 elo_ui_install() {
-  local instance addon provider mode
+  local instance addon provider project_type platform_choice platform="" mode
   local -a args
   instance="$(elo_ui_select_instance "Install into which instance?")" || return 0
   addon="$(elo_ui_input "Addon ID or slug" "sodium")" || return 0
   [[ -n "$addon" ]] || return 0
   provider="$(elo_ui_select_provider "Installation provider")" || return 0
+  provider="${provider:-$(elo_preferred_provider)}"
+  project_type="$(elo_provider_call "$provider" project_type "$addon")" || return 0
+  if [[ "$project_type" == "shader" ]]; then
+    platform_choice="$(elo_ui_choose_header "Shader platform" "Iris" "OptiFine")" || return 0
+    case "$platform_choice" in
+      Iris) platform="iris" ;;
+      OptiFine) platform="optifine" ;;
+    esac
+  fi
   mode="$(elo_ui_choose_header "Installation mode" "Install addon" "Preview only (dry run)")" || return 0
   args=("$instance" "$addon")
-  [[ -n "$provider" ]] && args+=(--provider "$provider")
+  [[ -n "$platform" ]] && args+=(--platform "$platform")
+  [[ "$provider" != "$(elo_preferred_provider)" ]] && args+=(--provider "$provider")
   [[ "$mode" == "Preview only (dry run)" ]] && args+=(--dry-run)
   elo_cmd_install "${args[@]}"
 }
@@ -755,6 +790,7 @@ elo_ui_run() {
   local action
   ELO_UI_EXIT=0
   elo_ui_require || return
+  ELO_UI_ACTIVE=1
 
   while true; do
     ELO_UI_SKIP_PAUSE=0

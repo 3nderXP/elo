@@ -304,13 +304,25 @@ elo addons search complementary \
 ```
 
 Supported search types are `mod`, `resourcepack`, and `shader`. Modrinth is the
-default and currently the only provider.
+default and currently the only provider. Instance loaders such as Fabric and
+NeoForge filter mods only; shader and resource-pack searches still use the
+instance's Minecraft version without inheriting its mod loader.
 
 Preview installation without changing files:
 
 ```bash
 elo addons install fabric-1_21 sodium --dry-run
 ```
+
+Shader installation requires an explicit platform choice:
+
+```bash
+elo addons install fabric-1_21 psx-core --platform iris --dry-run
+```
+
+The interactive interface asks for Iris or OptiFine after detecting a shader.
+This choice is per installation because the instance mod loader and the shader
+platform describe different compatibility layers.
 
 Elo never overwrites an existing addon with different or unverifiable content.
 If an unregistered file has the exact expected filename and SHA-512 hash, Elo

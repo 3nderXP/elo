@@ -308,7 +308,7 @@ elo_cmd_reset() {
 
 elo_cmd_status() {
   local minecraft_path active folders folder linked original destination expected actual state
-  local inconsistent=0
+  local inconsistent=0 status_lines=""
 
   elo_require_initialized || return
   minecraft_path="$(elo_minecraft_path)" || return
@@ -317,7 +317,6 @@ elo_cmd_status() {
 
   printf 'Minecraft: %s\n' "$minecraft_path"
   printf 'Active instance: %s\n' "${active:--}"
-  printf '%-16s %-20s %-12s %s\n' "FOLDER" "LINK" "ORIGINAL" "STATE"
 
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return
@@ -353,8 +352,17 @@ elo_cmd_status() {
       state="real directory"
     fi
 
-    printf '%-16s %-20s %-12s %s\n' "$folder" "${linked:--}" "${original:--}" "$state"
+    status_lines="${status_lines}${status_lines:+$'\n'}$folder"$'\t'"${linked:--}"$'\t'"${original:--}"$'\t'"$state"
   done
+
+  if [[ "${ELO_UI_ACTIVE:-0}" == "1" ]] && declare -F elo_ui_status_table >/dev/null 2>&1; then
+    elo_ui_status_table "$status_lines"
+  else
+    printf '%-16s %-20s %-12s %s\n' "FOLDER" "LINK" "ORIGINAL" "STATE"
+    while IFS=$'\t' read -r folder linked original state; do
+      printf '%-16s %-20s %-12s %s\n' "$folder" "$linked" "$original" "$state"
+    done <<<"$status_lines"
+  fi
 
   ((inconsistent == 0))
 }

@@ -118,6 +118,13 @@ elo_provider_available_names() {
   printf '%s\n' modrinth
 }
 
+elo_provider_modrinth_project_type() {
+  case "$1" in
+    psx-core) printf '%s\n' shader ;;
+    *) printf '%s\n' mod ;;
+  esac
+}
+
 elo_test_record() {
   : >"$CALLS"
   while (($# > 0)); do
@@ -181,6 +188,10 @@ assert_contains "$TEST_ROOT/search-offsets" 50
 elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
 elo_ui_install
 assert_call $'install\nalpha\nsodium\n--dry-run'
+
+elo_test_queue alpha psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
+elo_ui_install
+assert_call $'install\nalpha\npsx-core\n--platform\niris\n--dry-run'
 
 elo_test_queue alpha "Replace existing directories permanently"
 elo_ui_activate
@@ -255,6 +266,13 @@ elo_ui_lazy_paginate "Lazy results" 3 2 1 "0" elo_test_lazy_loader >/dev/null
 assert_contains "$ELO_UI_CACHE_DIR/page-0" page-0
 assert_contains "$ELO_UI_CACHE_DIR/page-1" page-1
 assert_contains "$GUM_CALLS" "table --print"
+ELO_UI_ACTIVE=1
+ELO_INSTALL_PLAN_LINES=$'addon\tPSX-Core Shader\t0.1.6\tshader\tdownload'
+elo_install_plan_print alpha psx-core >/dev/null
+elo_ui_status_table $'mods\talpha\t-\tok' >/dev/null
+ELO_UI_ACTIVE=0
+assert_contains "$GUM_CALLS" "install-plan.tsv"
+assert_contains "$GUM_CALLS" "status.tsv"
 ELO_UI_PAGE_SIZE=10
 
 : >"$MENUS"

@@ -167,6 +167,11 @@ validation is lazy: the current page is checked first, the next page loads in
 the background, and visited pages remain cached for instant navigation.
 Starting another list refreshes the temporary cache.
 
+Integrity results also persist by instance. Unchanged files reuse their cached
+status, while new, missing, or metadata-changed files are validated directly.
+Removal commands always recalculate the current hash before deleting a managed
+addon.
+
 To install a result, choose **Addons**, then **Install addon**, select the
 instance, and enter the project ID or slug. You may preview the dependency plan
 with dry-run mode or continue with installation and confirmation.

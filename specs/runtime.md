@@ -4,8 +4,8 @@
 - Linux and macOS MVP
 - Bash 3.2 compatibility where practical
 - Strict mode in executables and tests
-- Standard utilities: `mv`, `rm`, `ln`, `readlink`, `mktemp`, `date`, `sed`,
-  `wc`, `cat`, `kill`, and `sleep`
+- Standard utilities: `mv`, `rm`, `ln`, `readlink`, `mktemp`, `date`, `stat`,
+  `awk`, `sed`, `wc`, `cat`, `kill`, and `sleep`
 - `curl` required for remote installation, updates, and provider downloads
 - Gum v0.17.0 is copied or installed into Elo's private user-space tools
   directory and powers the no-argument interactive interface

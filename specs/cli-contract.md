@@ -96,6 +96,13 @@ clears its registry entry when present. Symlinks and nested paths are refused.
 Output uses a fixed 160-character table; values exceeding column widths end in
 `...`.
 
+Addon listing reads the registry once, builds a linear reverse file index, and
+caches managed-file integrity results by expected hash plus device, inode,
+size, modification time, and change time. Unchanged fingerprints reuse their
+display state; new or changed fingerprints recalculate SHA-512. Removal and
+orphan cleanup always verify current file content independently of this derived
+cache.
+
 Search prints `info: No addons found.` when provider results are empty.
 `addons remove --remove-orphans` computes reachability from every remaining
 direct addon using persisted required-dependency edges. Only unreachable dependency

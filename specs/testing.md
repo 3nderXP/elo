@@ -9,7 +9,9 @@ preservation, and self-uninstallation.
 
 `tests/test_provider.sh` covers provider search, dependency planning and
 installation, registry scanning, adoption, and safe addon removal using an
-offline fake Modrinth transport.
+offline fake Modrinth transport. It also verifies linear inventory behavior,
+partial final pages, persistent integrity-cache reuse, directed rehashing after
+file changes, and cache removal with an instance.
 
 `tests/test_interactive.sh` uses deterministic Gum-response stubs to verify
 that interactive menus expose the CLI operations and delegate their selected

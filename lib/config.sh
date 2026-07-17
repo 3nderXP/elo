@@ -8,6 +8,7 @@ ELO_CONFIG_FILE="$ELO_HOME/config.conf"
 ELO_STATE_FILE="$ELO_HOME/state.conf"
 ELO_INSTANCES_DIR="$ELO_HOME/instances"
 ELO_BACKUP_DIR="$ELO_HOME/backups/original"
+ELO_ADDON_CACHE_DIR="$ELO_HOME/cache/addons"
 ELO_DEFAULT_MANAGED_FOLDERS="mods resourcepacks shaderpacks config"
 
 elo_kv_get() {

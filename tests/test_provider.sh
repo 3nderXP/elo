@@ -139,5 +139,53 @@ assert_file "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
 assert_absent "$ELO_HOME/instances/orphan/mods/second.jar"
 assert_absent "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
 
+"$ELO" instances create cache-test --version 1.21.1 --loader fabric >/dev/null
+"$ELO" addons install cache-test sodium --yes >/dev/null
+
+# shellcheck source=../lib/utils.sh
+source "$PROJECT_DIR/lib/utils.sh"
+# shellcheck source=../lib/config.sh
+source "$PROJECT_DIR/lib/config.sh"
+# shellcheck source=../lib/instance.sh
+source "$PROJECT_DIR/lib/instance.sh"
+# shellcheck source=../lib/provider_modrinth.sh
+source "$PROJECT_DIR/lib/provider_modrinth.sh"
+# shellcheck source=../lib/provider.sh
+source "$PROJECT_DIR/lib/provider.sh"
+
+ELO_HASH_LOG="$TEST_ROOT/hash.log"
+elo_file_sha512() {
+  printf 'hash\n' >>"$ELO_HASH_LOG"
+  if command -v sha512sum >/dev/null 2>&1; then
+    sha512sum "$1" | awk '{print $1}'
+  else
+    shasum -a 512 "$1" | awk '{print $1}'
+  fi
+}
+
+inventory_file="$TEST_ROOT/cache-inventory"
+elo_addons_list_inventory cache-test >"$inventory_file"
+: >"$ELO_HASH_LOG"
+elo_addons_list_inventory_page cache-test "$inventory_file" 0 100 >/dev/null
+[[ -s "$ELO_HASH_LOG" ]] || fail "first cached listing should hash managed files"
+
+: >"$ELO_HASH_LOG"
+elo_addons_list_inventory_page cache-test "$inventory_file" 0 100 >/dev/null
+[[ ! -s "$ELO_HASH_LOG" ]] || fail "unchanged cached listing should not repeat hashes"
+
+printf 'changed addon content\n' >"$ELO_HOME/instances/cache-test/mods/sodium.jar"
+: >"$ELO_HASH_LOG"
+output="$(elo_addons_list_inventory_page cache-test "$inventory_file" 0 100)"
+[[ "$(wc -l <"$ELO_HASH_LOG")" == "1" ]] || fail "only the changed addon should be rehashed"
+assert_contains "$output" "modified"
+
+inventory_count="$(wc -l <"$inventory_file")"
+elo_addons_list_inventory_page cache-test "$inventory_file" "$((inventory_count - 1))" 10 >/dev/null ||
+  fail "a partial final addon page should return success"
+
+assert_file "$ELO_ADDON_CACHE_DIR/cache-test/$(basename "$(elo_addon_cache_file cache-test modrinth:sodium01)")"
+"$ELO" instances remove cache-test --yes >/dev/null
+assert_absent "$ELO_ADDON_CACHE_DIR/cache-test"
+
 printf 'ok 1 - provider search, dependency install, registry, and safe removal\n'
 printf '1..1\n'

@@ -29,5 +29,5 @@ installer.
 Provider modules implement `search`, paginated `search_page`, `resolve`,
 `get_dependencies`, and `download` functions. Paginated search returns the
 provider's total hit count before its result rows. The provider manager owns CLI
-behavior, recursive dependency coordination, and `addons.conf`;
-provider-specific modules do not write runtime state.
+behavior, recursive dependency coordination, `addons.conf`, and derived addon
+integrity caches; provider-specific modules do not write runtime state.

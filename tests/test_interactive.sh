@@ -22,6 +22,9 @@ source "$PROJECT_DIR/lib/provider.sh"
 # shellcheck source=../lib/interactive.sh
 source "$PROJECT_DIR/lib/interactive.sh"
 ELO_GUM_COMMAND="true"
+ELO_UI_CACHE_ROOT="$TEST_ROOT"
+ELO_UI_CACHE_DIR="$TEST_ROOT/elo-ui.test"
+mkdir -p -- "$ELO_UI_CACHE_DIR"
 
 mkdir -p -- "$ELO_INSTANCES_DIR/alpha"
 : >"$ELO_CONFIG_FILE"
@@ -118,6 +121,17 @@ elo_cmd_addons_list() {
   elo_test_record addons-list "$@"
   printf 'SOURCE NAME TYPE VERSION STATE FILE\n------\n- sodium mod 1.0 external sodium.jar\n'
 }
+elo_addons_list_inventory() {
+  elo_test_record addons-list "$@"
+  printf 'external\tmod\tsodium.jar\n'
+}
+elo_addons_list_inventory_page() {
+  printf 'SOURCE NAME TYPE VERSION STATE FILE\n------\n- sodium mod 1.0 external sodium.jar\n'
+}
+elo_test_lazy_loader() {
+  local page="$1"
+  printf 'HEADER\npage-%s\n' "$page"
+}
 
 elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
 elo_ui_search >/dev/null
@@ -172,6 +186,22 @@ assert_contains "$TEST_ROOT/pages" five
 assert_contains "$MENUS" "Navigate results Next Back"
 assert_contains "$MENUS" "Navigate results Previous Next Back"
 assert_contains "$MENUS" "Navigate results Previous Back"
+[[ -f "$ELO_UI_CACHE_DIR/page-0" ]] || fail "previous page was not cached"
+[[ -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "current page was not cached"
+[[ -f "$ELO_UI_CACHE_DIR/page-2" ]] || fail "next page was not cached"
+ELO_UI_PAGE_SIZE=10
+
+elo_test_queue Back
+elo_ui_paginate "Refreshed results" 1 $'HEADER\nfresh' >/dev/null
+[[ ! -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "a new listing did not invalidate old pages"
+assert_contains "$ELO_UI_CACHE_DIR/page-0" fresh
+
+elo_ui_cache_reset
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Next Back
+elo_ui_lazy_paginate "Lazy results" 3 elo_test_lazy_loader >/dev/null
+assert_contains "$ELO_UI_CACHE_DIR/page-0" page-0
+assert_contains "$ELO_UI_CACHE_DIR/page-1" page-1
 ELO_UI_PAGE_SIZE=10
 
 : >"$MENUS"

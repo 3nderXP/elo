@@ -4,6 +4,9 @@ ELO_UI_ACCENT="212"
 ELO_GUM_COMMAND=""
 ELO_UI_PAGE_SIZE=10
 ELO_UI_SKIP_PAUSE=0
+ELO_UI_CACHE_DIR=""
+ELO_UI_CACHE_ROOT=""
+ELO_UI_CACHE_PIDS=""
 
 elo_ui_require() {
   if [[ ! -t 0 || ! -t 1 ]]; then
@@ -15,6 +18,13 @@ elo_ui_require() {
     elo_die "Interactive mode requires gum. Install it from https://github.com/charmbracelet/gum"
     return 1
   fi
+  ELO_UI_CACHE_ROOT="${TMPDIR:-/tmp}"
+  [[ "$ELO_UI_CACHE_ROOT" == "/" ]] || ELO_UI_CACHE_ROOT="${ELO_UI_CACHE_ROOT%/}"
+  ELO_UI_CACHE_DIR="$(mktemp -d "$ELO_UI_CACHE_ROOT/elo-ui.XXXXXX")" || {
+    elo_die "Could not create the interactive cache."
+    return 1
+  }
+  trap elo_ui_cleanup EXIT
 }
 
 elo_ui_header() {
@@ -58,15 +68,91 @@ elo_ui_confirm() {
     --selected.background "$ELO_UI_ACCENT" "$1"
 }
 
-elo_ui_paginate() {
-  local title="$1" header_count="$2" output="$3"
-  local page=0 data_count total_pages start end index action
-  local -a lines actions
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    lines+=("$line")
-  done <<<"$output"
+elo_ui_cleanup() {
+  [[ -n "$ELO_UI_CACHE_DIR" && -n "$ELO_UI_CACHE_ROOT" ]] || return 0
+  elo_ui_cache_stop_jobs
+  case "$ELO_UI_CACHE_DIR" in
+    "$ELO_UI_CACHE_ROOT"/elo-ui.*) rm -rf -- "$ELO_UI_CACHE_DIR" ;;
+  esac
+  ELO_UI_CACHE_DIR=""
+}
 
-  data_count=$((${#lines[@]} - header_count))
+elo_ui_cache_stop_jobs() {
+  local pid
+  for pid in $ELO_UI_CACHE_PIDS; do
+    kill "$pid" >/dev/null 2>&1 || true
+    wait "$pid" >/dev/null 2>&1 || true
+  done
+  ELO_UI_CACHE_PIDS=""
+}
+
+elo_ui_cache_forget_pid() {
+  local forgotten="$1" pid remaining=""
+  for pid in $ELO_UI_CACHE_PIDS; do
+    [[ "$pid" == "$forgotten" ]] && continue
+    remaining="$remaining $pid"
+  done
+  ELO_UI_CACHE_PIDS="$remaining"
+}
+
+elo_ui_cache_reset() {
+  local entry
+  [[ -n "$ELO_UI_CACHE_DIR" && -d "$ELO_UI_CACHE_DIR" ]] || {
+    elo_die "Interactive cache is not available."
+    return 1
+  }
+  elo_ui_cache_stop_jobs
+  for entry in "$ELO_UI_CACHE_DIR"/*; do
+    [[ -e "$entry" || -L "$entry" ]] || continue
+    rm -f -- "$entry"
+  done
+}
+
+elo_ui_wait_for_status() {
+  local title="$1" status_file="$2" pid="$3"
+  if ! "$ELO_GUM_COMMAND" spin --spinner dot \
+    --spinner.foreground "$ELO_UI_ACCENT" --title.foreground "$ELO_UI_ACCENT" \
+    --title "$title" -- sh -c \
+    'while [ ! -f "$1" ]; do sleep 0.1; done' sh "$status_file"; then
+    kill "$pid" >/dev/null 2>&1 || true
+    wait "$pid" >/dev/null 2>&1 || true
+    return 1
+  fi
+  wait "$pid" >/dev/null 2>&1 || true
+}
+
+elo_ui_cache_page() {
+  local snapshot="$1" header_count="$2" page="$3"
+  local target="$ELO_UI_CACHE_DIR/page-$page" temporary start end
+  [[ -f "$target" ]] && return 0
+  temporary="$target.tmp"
+  : >"$temporary"
+  if ((header_count > 0)); then
+    sed -n "1,${header_count}p" "$snapshot" >>"$temporary"
+  fi
+  start=$((header_count + page * ELO_UI_PAGE_SIZE + 1))
+  end=$((start + ELO_UI_PAGE_SIZE - 1))
+  sed -n "${start},${end}p" "$snapshot" >>"$temporary"
+  mv -- "$temporary" "$target"
+}
+
+elo_ui_cache_adjacent_pages() {
+  local snapshot="$1" header_count="$2" page="$3" total_pages="$4"
+  elo_ui_cache_page "$snapshot" "$header_count" "$page" || return
+  if ((page > 0)); then
+    elo_ui_cache_page "$snapshot" "$header_count" "$((page - 1))" || return
+  fi
+  if ((page + 1 < total_pages)); then
+    elo_ui_cache_page "$snapshot" "$header_count" "$((page + 1))" || return
+  fi
+}
+
+elo_ui_paginate_snapshot() {
+  local title="$1" header_count="$2" snapshot="$3"
+  local page=0 line_count data_count total_pages action
+  local -a actions
+  line_count="$(wc -l <"$snapshot")"
+  data_count=$((line_count - header_count))
   ((data_count < 0)) && data_count=0
   total_pages=$(((data_count + ELO_UI_PAGE_SIZE - 1) / ELO_UI_PAGE_SIZE))
   ((total_pages == 0)) && total_pages=1
@@ -78,19 +164,8 @@ elo_ui_paginate() {
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
       "$title — Page $((page + 1)) of $total_pages"
     printf '\n'
-    index=0
-    while ((index < header_count && index < ${#lines[@]})); do
-      printf '%s\n' "${lines[$index]}"
-      index=$((index + 1))
-    done
-    start=$((header_count + page * ELO_UI_PAGE_SIZE))
-    end=$((start + ELO_UI_PAGE_SIZE))
-    ((end > ${#lines[@]})) && end=${#lines[@]}
-    index=$start
-    while ((index < end)); do
-      printf '%s\n' "${lines[$index]}"
-      index=$((index + 1))
-    done
+    elo_ui_cache_adjacent_pages "$snapshot" "$header_count" "$page" "$total_pages" || return
+    cat -- "$ELO_UI_CACHE_DIR/page-$page"
     printf '\n'
 
     actions=()
@@ -106,13 +181,125 @@ elo_ui_paginate() {
   done
 }
 
-elo_ui_paginated_command() {
-  local title="$1" header_count="$2" output
+elo_ui_paginate() {
+  local title="$1" header_count="$2" output="$3" snapshot
+  elo_ui_cache_reset || return
+  snapshot="$ELO_UI_CACHE_DIR/snapshot"
+  printf '%s\n' "$output" >"$snapshot"
+  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot"
+}
+
+elo_ui_run_with_spinner() {
+  local title="$1" snapshot="$2" errors="$3" status_file="$4" status_temp pid status
+  shift 4
+  status_temp="$status_file.tmp"
+  (
+    if "$@" >"$snapshot" 2>"$errors"; then
+      status=0
+    else
+      status=$?
+    fi
+    printf '%s\n' "$status" >"$status_temp"
+    mv -- "$status_temp" "$status_file"
+  ) &
+  pid=$!
+  elo_ui_wait_for_status "$title" "$status_file" "$pid" || return
+  status="$(sed -n '1p' "$status_file")"
+  [[ -s "$errors" ]] && cat -- "$errors" >&2
+  [[ "$status" == "0" ]]
+}
+
+elo_ui_lazy_page_start() {
+  local page="$1" loader="$2" target temporary errors status_file status_temp status pid
   shift 2
-  if ! output="$("$@")"; then
+  target="$ELO_UI_CACHE_DIR/page-$page"
+  [[ -f "$target" || -f "$target.loading" ]] && return 0
+  temporary="$target.tmp"
+  errors="$target.errors"
+  status_file="$target.status"
+  status_temp="$status_file.tmp"
+  : >"$target.loading"
+  (
+    if "$loader" "$page" "$ELO_UI_PAGE_SIZE" "$@" >"$temporary" 2>"$errors"; then
+      status=0
+      mv -- "$temporary" "$target"
+    else
+      status=$?
+      rm -f -- "$temporary"
+    fi
+    printf '%s\n' "$status" >"$status_temp"
+    mv -- "$status_temp" "$status_file"
+  ) &
+  pid=$!
+  printf '%s\n' "$pid" >"$target.pid"
+  ELO_UI_CACHE_PIDS="$ELO_UI_CACHE_PIDS $pid"
+}
+
+elo_ui_lazy_page_ensure() {
+  local title="$1" page="$2" loader="$3" target pid status
+  shift 3
+  target="$ELO_UI_CACHE_DIR/page-$page"
+  [[ -f "$target" ]] && return 0
+  elo_ui_lazy_page_start "$page" "$loader" "$@" || return
+  pid="$(sed -n '1p' "$target.pid")"
+  if ! elo_ui_wait_for_status "Loading $title page $((page + 1))..." "$target.status" "$pid"; then
+    elo_ui_cache_forget_pid "$pid"
     return 1
   fi
-  elo_ui_paginate "$title" "$header_count" "$output"
+  elo_ui_cache_forget_pid "$pid"
+  status="$(sed -n '1p' "$target.status")"
+  [[ -s "$target.errors" ]] && cat -- "$target.errors" >&2
+  rm -f -- "$target.loading" "$target.pid" "$target.status" "$target.errors"
+  [[ "$status" == "0" && -f "$target" ]]
+}
+
+elo_ui_lazy_paginate() {
+  local title="$1" item_count="$2" loader="$3" page=0 total_pages action
+  local -a actions
+  shift 3
+  total_pages=$(((item_count + ELO_UI_PAGE_SIZE - 1) / ELO_UI_PAGE_SIZE))
+  ((total_pages == 0)) && total_pages=1
+  ELO_UI_SKIP_PAUSE=1
+  while true; do
+    elo_ui_lazy_page_ensure "$title" "$page" "$loader" "$@" || return
+    clear
+    elo_ui_header
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
+      "$title — Page $((page + 1)) of $total_pages"
+    printf '\n'
+    cat -- "$ELO_UI_CACHE_DIR/page-$page"
+    printf '\n'
+    ((page > 0)) && elo_ui_lazy_page_start "$((page - 1))" "$loader" "$@"
+    ((page + 1 < total_pages)) && elo_ui_lazy_page_start "$((page + 1))" "$loader" "$@"
+    actions=()
+    ((page > 0)) && actions+=("Previous")
+    ((page + 1 < total_pages)) && actions+=("Next")
+    actions+=("Back")
+    action="$(elo_ui_choose_header "Navigate results" "${actions[@]}")" || return 0
+    case "$action" in
+      Previous) page=$((page - 1)) ;;
+      Next) page=$((page + 1)) ;;
+      *) elo_ui_cache_stop_jobs; return 0 ;;
+    esac
+  done
+}
+
+elo_ui_addons_page_loader() {
+  local page="$1" page_size="$2" instance="$3" inventory="$4"
+  elo_addons_list_inventory_page "$instance" "$inventory" "$((page * page_size))" "$page_size"
+}
+
+elo_ui_paginated_command() {
+  local title="$1" header_count="$2" snapshot errors status_file
+  shift 2
+  elo_ui_cache_reset || return
+  snapshot="$ELO_UI_CACHE_DIR/snapshot"
+  errors="$ELO_UI_CACHE_DIR/errors"
+  status_file="$ELO_UI_CACHE_DIR/status"
+  if ! elo_ui_run_with_spinner "Loading $title..." "$snapshot" "$errors" "$status_file" "$@"; then
+    return 1
+  fi
+  elo_ui_paginate_snapshot "$title" "$header_count" "$snapshot"
 }
 
 elo_ui_instances() {
@@ -252,9 +439,17 @@ elo_ui_install() {
 }
 
 elo_ui_addons_list() {
-  local instance
+  local instance inventory errors status_file item_count
   instance="$(elo_ui_select_instance "Show addons from which instance?")" || return 0
-  elo_ui_paginated_command "Addons in $instance" 2 elo_cmd_addons_list "$instance"
+  elo_ui_cache_reset || return
+  inventory="$ELO_UI_CACHE_DIR/inventory"
+  errors="$ELO_UI_CACHE_DIR/errors"
+  status_file="$ELO_UI_CACHE_DIR/status"
+  elo_ui_run_with_spinner "Indexing addons in $instance..." \
+    "$inventory" "$errors" "$status_file" elo_addons_list_inventory "$instance" || return
+  item_count="$(wc -l <"$inventory")"
+  elo_ui_lazy_paginate "Addons in $instance" "$item_count" \
+    elo_ui_addons_page_loader "$instance" "$inventory"
 }
 
 elo_ui_adopt() {

@@ -13,3 +13,5 @@
   Elo state, and the path is not `/` or `$HOME`.
 - Keep Gum private to the installation. Preserve a functional standalone copy
   when migrating a legacy global Gum symlink during self-uninstall.
+- Keep interactive list snapshots under an Elo-owned `mktemp` directory and
+  remove only that validated directory when the interactive process exits.

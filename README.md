@@ -159,6 +159,10 @@ optionally select its type, compatibility instance, provider, and result limit.
 Search results and other guided lists show 10 items per page with
 **Previous**/**Next** navigation. Direct commands continue to print complete
 lists without interactive pagination.
+The interface shows a loading animation while it prepares a new list. Addon
+validation is lazy: the current page is checked first, the next page loads in
+the background, and visited pages remain cached for instant navigation.
+Starting another list refreshes the temporary cache.
 
 To install a result, choose **Addons**, then **Install addon**, select the
 instance, and enter the project ID or slug. You may preview the dependency plan

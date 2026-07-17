@@ -401,36 +401,13 @@ elo_cmd_install() {
   elo_addon_install_recursive "$instance" "$provider" "$addon" false
 }
 
-elo_cmd_addons_list() {
-  local instance="${1:-}" key file type filename target expected actual state directory entry entry_type
+elo_addons_list_inventory() {
+  local instance="$1" key directory entry entry_type filename
   elo_require_initialized || return
-  [[ -n "$instance" && "$instance" != --* ]] || { elo_die "Usage: elo addons list <instance>"; return; }
   elo_require_instance "$instance" || return
-  (($# == 1)) || { elo_die "Usage: elo addons list <instance>"; return; }
-  file="$(elo_addon_registry "$instance")"
-  elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
-  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
   while IFS= read -r key || [[ -n "$key" ]]; do
-    type="$(elo_kv_get "$file" "${key}_type")"
-    filename="$(elo_kv_get "$file" "${key}_filename")"
-    expected="$(elo_kv_get "$file" "${key}_sha512" || true)"
-    if [[ -z "$filename" || "$filename" == */* || "$filename" == *$'\n'* ]]; then
-      state=missing
-    else
-      target="$(elo_addon_type_dir "$instance" "$type")/$filename" || return
-      state=managed
-      if [[ ! -f "$target" || -L "$target" ]]; then
-        state=missing
-      else
-        actual="$(elo_file_sha512 "$target")" || return
-        [[ -n "$expected" && "$actual" == "$expected" ]] || state=modified
-      fi
-    fi
-    elo_addon_table_row "$key" \
-      "$(elo_kv_get "$file" "${key}_name")" "$type" \
-      "$(elo_kv_get "$file" "${key}_version_number")" "$state" "$filename"
+    printf 'registered\t%s\n' "$key"
   done < <(elo_addon_ids "$instance")
-
   for entry_type in mod resourcepack shader; do
     directory="$(elo_addon_type_dir "$instance" "$entry_type")"
     shopt -s nullglob dotglob
@@ -438,10 +415,68 @@ elo_cmd_addons_list() {
       [[ -f "$entry" && ! -L "$entry" ]] || continue
       filename="${entry##*/}"
       elo_addon_key_by_file "$instance" "$entry_type" "$filename" >/dev/null && continue
-      elo_addon_table_row - "$filename" "$entry_type" - external "$filename"
+      printf 'external\t%s\t%s\n' "$entry_type" "$filename"
     done
     shopt -u nullglob dotglob
   done
+}
+
+elo_addons_list_inventory_row() {
+  local instance="$1" kind="$2" reference="$3" external_filename="${4:-}"
+  local file key type filename target expected actual state
+  file="$(elo_addon_registry "$instance")"
+  if [[ "$kind" == "external" ]]; then
+    elo_addon_table_row - "$external_filename" "$reference" - external "$external_filename"
+    return
+  fi
+  key="$reference"
+  type="$(elo_kv_get "$file" "${key}_type")"
+  filename="$(elo_kv_get "$file" "${key}_filename")"
+  expected="$(elo_kv_get "$file" "${key}_sha512" || true)"
+  if [[ -z "$filename" || "$filename" == */* || "$filename" == *$'\n'* ]]; then
+    state=missing
+  else
+    target="$(elo_addon_type_dir "$instance" "$type")/$filename" || return
+    state=managed
+    if [[ ! -f "$target" || -L "$target" ]]; then
+      state=missing
+    else
+      actual="$(elo_file_sha512 "$target")" || return
+      [[ -n "$expected" && "$actual" == "$expected" ]] || state=modified
+    fi
+  fi
+  elo_addon_table_row "$key" \
+    "$(elo_kv_get "$file" "${key}_name")" "$type" \
+    "$(elo_kv_get "$file" "${key}_version_number")" "$state" "$filename"
+}
+
+elo_addons_list_inventory_page() {
+  local instance="$1" inventory="$2" offset="$3" limit="$4"
+  local index=0 kind reference filename
+  elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
+  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
+  while IFS=$'\t' read -r kind reference filename || [[ -n "$kind" ]]; do
+    if ((index >= offset && index < offset + limit)); then
+      elo_addons_list_inventory_row "$instance" "$kind" "$reference" "$filename" || return
+    fi
+    index=$((index + 1))
+    ((index >= offset + limit)) && break
+  done <"$inventory"
+}
+
+elo_cmd_addons_list() {
+  local instance="${1:-}" inventory kind reference filename
+  elo_require_initialized || return
+  [[ -n "$instance" && "$instance" != --* ]] || { elo_die "Usage: elo addons list <instance>"; return; }
+  elo_require_instance "$instance" || return
+  (($# == 1)) || { elo_die "Usage: elo addons list <instance>"; return; }
+  inventory="$(elo_addons_list_inventory "$instance")" || return
+  elo_addon_table_row SOURCE NAME TYPE VERSION STATE FILE
+  printf '%s\n' '----------------------------------------------------------------------------------------------------------------------------------------------------------------'
+  while IFS=$'\t' read -r kind reference filename || [[ -n "$kind" ]]; do
+    [[ -n "$kind" ]] || continue
+    elo_addons_list_inventory_row "$instance" "$kind" "$reference" "$filename" || return
+  done <<<"$inventory"
 }
 
 elo_addon_find_key() {

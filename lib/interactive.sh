@@ -34,26 +34,27 @@ elo_ui_require() {
 }
 
 elo_ui_header() {
-  local display="${1:-compact}" active="" columns="" lines="" logo_file
+  local active="" columns="" logo_file logo
   [[ -f "$ELO_CONFIG_FILE" ]] && active="$(elo_active_instance)"
   logo_file="${ELO_SCRIPT_DIR:-}/assets/branding/elo.asc"
   columns="${COLUMNS:-}"
   if [[ -z "$columns" ]] && command -v tput >/dev/null 2>&1; then
     columns="$(tput cols 2>/dev/null || true)"
   fi
-  lines="${LINES:-}"
-  if [[ -z "$lines" ]] && command -v tput >/dev/null 2>&1; then
-    lines="$(tput lines 2>/dev/null || true)"
-  fi
   [[ "$columns" =~ ^[0-9]+$ ]] || columns=80
-  [[ "$lines" =~ ^[0-9]+$ ]] || lines=30
-  if [[ "$display" == "full" && -r "$logo_file" && "$columns" -ge 66 && "$lines" -ge 28 ]]; then
-    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_WOOD" --bold <"$logo_file"
+  if [[ -r "$logo_file" && "$columns" -ge 44 ]]; then
+    logo="$(<"$logo_file")"
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_WOOD" --bold \
+      --background "$ELO_UI_DARK" --border rounded \
+      --border-foreground "$ELO_UI_GRASS" --border-background "$ELO_UI_DARK" \
+      --padding "1 2" \
+      "$logo"
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold \
       "Minecraft instance manager"
   else
-    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --bold --border rounded \
-      --border-foreground "$ELO_UI_GRASS" --padding "0 2" \
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_SKY" --background "$ELO_UI_DARK" \
+      --bold --border rounded --border-foreground "$ELO_UI_GRASS" \
+      --border-background "$ELO_UI_DARK" --padding "1 2" \
       "Elo" "Minecraft instance manager"
   fi
   if [[ -n "$active" ]]; then
@@ -812,7 +813,7 @@ elo_ui_run() {
   while true; do
     ELO_UI_SKIP_PAUSE=0
     clear
-    elo_ui_header full
+    elo_ui_header
     if [[ ! -f "$ELO_CONFIG_FILE" ]]; then
       action="$(elo_ui_choose "Initialize Elo" "Update Elo" "Uninstall Elo" "Help" "Exit")" || return 0
       case "$action" in

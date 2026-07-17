@@ -10,3 +10,7 @@
 
 Keep runtime code independent of PNG rendering. Terminal presentation must use
 the ASCII asset and the centralized Gum theme colors.
+Leading and trailing spaces in `elo.asc` are structural content. Editors,
+formatters, and automated checks must preserve them exactly.
+The Gum renderer must pass the complete artwork as one quoted argument. Gum's
+standard-input path removes leading whitespace from the first line.

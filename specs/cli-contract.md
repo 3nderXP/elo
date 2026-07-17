@@ -48,9 +48,12 @@ actions, sky blue for structure, and wood brown for selection and context.
 Other Gum controls use the same palette. Addon adoption and exact-file removal
 use `gum file`, rooted in the selected instance's valid addon directory; the
 command handlers still enforce path and file-safety rules.
-The main menu renders the installed ASCII logo in wood brown on terminals at
-least 66 columns wide and 28 lines tall. Other screens and smaller terminals
-use the compact bordered header so list content retains vertical space.
+Every interactive screen renders the installed ASCII logo in wood brown inside
+the shared rounded grass-green border and dark theme background on terminals at
+least 44 columns wide. Symmetric vertical padding keeps one blank row above and
+below the artwork. Narrower terminals use the compact textual header to prevent
+horizontal clipping. The renderer passes the logo to Gum as one argument so
+structural leading and trailing spaces are preserved.
 
 Before the first interactive page is shown, Gum displays a loading spinner.
 Search, instance, and provider lists build a fresh session snapshot and derive

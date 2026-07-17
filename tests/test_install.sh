@@ -53,6 +53,9 @@ assert_release_count() {
 [[ -x "$COMMAND" ]] || fail "the elo command should be executable"
 [[ -f "$INSTALL_DIR/current/assets/branding/elo.asc" ]] ||
   fail "the installed release should include the terminal logo"
+cmp "$PROJECT_DIR/assets/branding/elo.asc" \
+  "$INSTALL_DIR/current/assets/branding/elo.asc" >/dev/null ||
+  fail "the installer should preserve the terminal logo byte for byte"
 grep -F "BIN_DIR=$BIN_DIR" "$INSTALL_DIR/install.conf" >/dev/null ||
   fail "installer should persist the command directory for updates"
 

@@ -115,8 +115,12 @@ clear() {
   :
 }
 
-COLUMNS=100 LINES=30 elo_ui_header full >/dev/null
+COLUMNS=100 elo_ui_header >/dev/null
 assert_contains "$GUM_CALLS" "style --foreground $ELO_UI_WOOD --bold"
+assert_contains "$GUM_CALLS" "--border rounded --border-foreground $ELO_UI_GRASS"
+assert_contains "$GUM_CALLS" "--background $ELO_UI_DARK"
+assert_contains "$GUM_CALLS" "--padding 1 2"
+assert_contains "$GUM_CALLS" "      ___"
 
 elo_provider_available_names() {
   printf '%s\n' modrinth

@@ -76,6 +76,13 @@ elo_ui_choose_header() {
   elo_test_response
 }
 
+elo_ui_choose_header_selected() {
+  local header="$1" selected="$2"
+  shift 2
+  printf '%s selected=%s %s\n' "$header" "$selected" "$*" >>"$MENUS"
+  elo_test_response
+}
+
 elo_ui_input() {
   elo_test_response
 }
@@ -101,6 +108,14 @@ elo_test_record() {
 }
 
 elo_cmd_search() { elo_test_record search "$@"; }
+elo_search_page() {
+  local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
+  if [[ "$offset" == "0" ]]; then
+    elo_test_record search "$provider" "$query" "$type" "$instance" "$limit" "$offset"
+  fi
+  printf '%s\n' "$offset" >>"$TEST_ROOT/search-offsets"
+  printf '60\nsodium01\tsodium\tmod\tSodium\t42\n'
+}
 elo_cmd_install() { elo_test_record install "$@"; }
 elo_cmd_adopt() { elo_test_record adopt "$@"; }
 elo_cmd_addon_remove() { elo_test_record remove "$@"; }
@@ -133,9 +148,16 @@ elo_test_lazy_loader() {
   printf 'HEADER\npage-%s\n' "$page"
 }
 
+: >"$TEST_ROOT/search-offsets"
 elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
 elo_ui_search >/dev/null
-assert_call $'search\nsodium\n--limit\n25\n--type\nmod\n--instance\nalpha'
+assert_call $'search\nmodrinth\nsodium\nmod\nalpha\n25\n0'
+assert_contains "$TEST_ROOT/search-offsets" 0
+
+: >"$TEST_ROOT/search-offsets"
+elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Last Back
+elo_ui_search >/dev/null
+assert_contains "$TEST_ROOT/search-offsets" 50
 
 elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
 elo_ui_install
@@ -183,12 +205,22 @@ elo_test_queue Next Next Previous Back
 elo_ui_paginate "Test results" 1 $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/pages"
 assert_contains "$TEST_ROOT/pages" one
 assert_contains "$TEST_ROOT/pages" five
-assert_contains "$MENUS" "Navigate results Next Back"
-assert_contains "$MENUS" "Navigate results Previous Next Back"
-assert_contains "$MENUS" "Navigate results Previous Back"
+assert_contains "$MENUS" "Navigate results selected=Next Next Last Back"
+assert_contains "$MENUS" "Navigate results selected=Next First Previous Next Last Back"
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Back"
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Next Last Back"
 [[ -f "$ELO_UI_CACHE_DIR/page-0" ]] || fail "previous page was not cached"
 [[ -f "$ELO_UI_CACHE_DIR/page-1" ]] || fail "current page was not cached"
 [[ -f "$ELO_UI_CACHE_DIR/page-2" ]] || fail "next page was not cached"
+ELO_UI_PAGE_SIZE=10
+
+: >"$MENUS"
+ELO_UI_PAGE_SIZE=2
+elo_test_queue Last First Back
+elo_ui_paginate "Jump results" 1 $'HEADER\none\ntwo\nthree\nfour\nfive' >"$TEST_ROOT/jump-pages"
+assert_contains "$TEST_ROOT/jump-pages" one
+assert_contains "$TEST_ROOT/jump-pages" five
+assert_contains "$MENUS" "Navigate results selected=Previous First Previous Back"
 ELO_UI_PAGE_SIZE=10
 
 elo_test_queue Back
@@ -199,7 +231,7 @@ assert_contains "$ELO_UI_CACHE_DIR/page-0" fresh
 elo_ui_cache_reset
 ELO_UI_PAGE_SIZE=2
 elo_test_queue Next Back
-elo_ui_lazy_paginate "Lazy results" 3 elo_test_lazy_loader >/dev/null
+elo_ui_lazy_paginate "Lazy results" 3 2 elo_test_lazy_loader >/dev/null
 assert_contains "$ELO_UI_CACHE_DIR/page-0" page-0
 assert_contains "$ELO_UI_CACHE_DIR/page-1" page-1
 ELO_UI_PAGE_SIZE=10

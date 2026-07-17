@@ -8,6 +8,7 @@ TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/elo-provider-tests.XXXXXX")"
 trap 'rm -rf -- "$TEST_ROOT"' EXIT
 export ELO_HOME="$TEST_ROOT/elo-home"
 export PATH="$TEST_ROOT/bin:$PATH"
+export ELO_TEST_SEARCH_LOG="$TEST_ROOT/search.log"
 mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/minecraft"
 
 fail() { printf 'not ok - %s\n' "$1" >&2; exit 1; }
@@ -18,11 +19,13 @@ assert_absent() { [[ ! -e "$1" && ! -L "$1" ]] || fail "unexpected path: $1"; }
 cat >"$TEST_ROOT/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-url="" output="" empty_search=0
+url="" output="" empty_search=0 offset="" limit=""
 while (($# > 0)); do
   case "$1" in
     -o) output="$2"; shift 2 ;;
     query=no-results) empty_search=1; shift ;;
+    offset=*) offset="$1"; shift ;;
+    limit=*) limit="$1"; shift ;;
     http*) url="$1"; shift ;;
     *) shift ;;
   esac
@@ -30,8 +33,9 @@ done
 case "$url" in
   https://cdn.test/*) printf 'fixture addon\n' >"$output" ;;
   */search)
-    if ((empty_search == 1)); then printf '%s\n' '{"hits":[]}'
-    else printf '%s\n' '{"hits":[{"project_id":"sodium01","slug":"sodium","project_type":"mod","title":"Sodium","downloads":42}]}'
+    printf '%s %s\n' "$limit" "$offset" >>"$ELO_TEST_SEARCH_LOG"
+    if ((empty_search == 1)); then printf '%s\n' '{"hits":[],"total_hits":0}'
+    else printf '%s\n' '{"hits":[{"project_id":"sodium01","slug":"sodium","project_type":"mod","title":"Sodium","downloads":42}],"total_hits":201}'
     fi
     ;;
   */project/sodium) printf '%s\n' '{"id":"sodium01","slug":"sodium","title":"Sodium","project_type":"mod"}' ;;
@@ -64,6 +68,7 @@ fi
 output="$("$ELO" addons search sodium --type mod --instance fabric)"
 assert_contains "$output" "sodium01"
 assert_contains "$output" "Sodium"
+assert_contains "$(cat "$ELO_TEST_SEARCH_LOG")" "limit=10 offset=0"
 output="$("$ELO" addons search no-results --type mod --instance fabric)"
 assert_contains "$output" "info: No addons found."
 

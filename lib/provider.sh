@@ -19,9 +19,34 @@ elo_provider_call() {
 elo_provider_is_available() {
   local provider="$1" action
   elo_provider_validate_name "$provider" || return
-  for action in search resolve get_dependencies download; do
+  for action in search search_page resolve get_dependencies download; do
     declare -F "elo_provider_${provider}_${action}" >/dev/null 2>&1 || return 1
   done
+}
+
+elo_search_page() {
+  local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
+  local version="" loader=""
+  elo_require_initialized || return
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || {
+    elo_die "Invalid addon type: $type"
+    return 1
+  }
+  [[ "$limit" =~ ^[0-9]+$ ]] && ((limit >= 1 && limit <= 100)) || {
+    elo_die "Page size must be between 1 and 100."
+    return 1
+  }
+  [[ "$offset" =~ ^[0-9]+$ ]] || {
+    elo_die "Search offset must be a non-negative integer."
+    return 1
+  }
+  if [[ -n "$instance" ]]; then
+    elo_require_instance "$instance" || return
+    version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
+    loader="$(elo_instance_metadata "$instance" LOADER)"
+  fi
+  elo_provider_call "$provider" search_page \
+    "$query" "$type" "$version" "$loader" "$limit" "$offset"
 }
 
 elo_provider_available_names() {

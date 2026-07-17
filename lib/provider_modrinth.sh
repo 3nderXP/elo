@@ -18,8 +18,8 @@ elo_provider_modrinth_request() {
   }
 }
 
-elo_provider_modrinth_search() {
-  local query="$1" type="$2" game_version="$3" loader="$4" limit="$5"
+elo_provider_modrinth_search_response() {
+  local query="$1" type="$2" game_version="$3" loader="$4" limit="$5" offset="$6"
   local facets='[]' response
 
   [[ -n "$type" ]] && facets="$(jq -cn --arg value "project_type:$type" '[[$value]]')"
@@ -32,8 +32,24 @@ elo_provider_modrinth_search() {
 
   response="$(elo_provider_modrinth_request /search --get \
     --data-urlencode "query=$query" --data-urlencode "facets=$facets" \
-    --data-urlencode "limit=$limit")" || return
+    --data-urlencode "limit=$limit" --data-urlencode "offset=$offset")" || return
+  printf '%s\n' "$response"
+}
+
+elo_provider_modrinth_search() {
+  local query="$1" type="$2" game_version="$3" loader="$4" limit="$5" response
+  response="$(elo_provider_modrinth_search_response \
+    "$query" "$type" "$game_version" "$loader" "$limit" 0)" || return
   printf '%s' "$response" | jq -r '.hits[] | [.project_id, .slug, .project_type, .title, (.downloads | tostring)] | @tsv'
+}
+
+elo_provider_modrinth_search_page() {
+  local query="$1" type="$2" game_version="$3" loader="$4" limit="$5" offset="$6" response
+  response="$(elo_provider_modrinth_search_response \
+    "$query" "$type" "$game_version" "$loader" "$limit" "$offset")" || return
+  printf '%s' "$response" | jq -r '
+    (.total_hits // (.hits | length)),
+    (.hits[] | [.project_id, .slug, .project_type, .title, (.downloads | tostring)] | @tsv)'
 }
 
 elo_provider_modrinth_resolve() {

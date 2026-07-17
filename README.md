@@ -157,8 +157,11 @@ directories and connects `.minecraft` to the selected instance.
 Choose **Addons**, then **Search addons**. Enter a query such as `sodium` and
 optionally select its type, compatibility instance, provider, and result limit.
 Search results and other guided lists show 10 items per page with
-**Previous**/**Next** navigation. Direct commands continue to print complete
-lists without interactive pagination.
+**First**/**Previous**/**Next**/**Last** navigation. Search retrieves provider
+pages on demand, so the chosen page size does not limit the total matching
+results. Gum keeps the last navigation action selected between page renders.
+Direct commands continue to print complete lists without interactive
+pagination.
 The interface shows a loading animation while it prepares a new list. Addon
 validation is lazy: the current page is checked first, the next page loads in
 the background, and visited pages remain cached for instant navigation.

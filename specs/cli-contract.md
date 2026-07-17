@@ -35,9 +35,10 @@ their validation and confirmation semantics remain authoritative.
 
 Interactive instance, search-result, installed-addon, and provider lists use a
 standard page size of 10 items. Navigation offers `Previous` and `Next` only
-when those pages exist, plus `Back` on every page. Search requests up to 50
-results by default so navigation can span multiple pages. Direct CLI output is
-not paginated and remains suitable for pipes and automation.
+when those pages exist, `First` and `Last` for direct boundary jumps, plus
+`Back` on every page. Gum initializes the cursor on the last navigation action
+when that action remains available. Direct CLI output is not paginated and
+remains suitable for pipes and automation.
 
 Before the first interactive page is shown, Gum displays a loading spinner.
 Search, instance, and provider lists build a fresh session snapshot and derive
@@ -45,8 +46,11 @@ the current and adjacent pages from it by numeric index. Addon listing first
 builds a cheap inventory, validates only the current page, and prefetches the
 next page in a background worker while visited pages remain cached. If a page
 is requested before its worker finishes, the spinner remains visible until it
-is ready. A new list operation invalidates the prior cache, and leaving the
-interactive process stops workers and removes its temporary files.
+is ready. Interactive provider search also loads pages lazily using provider
+offsets and total-hit metadata; its selected page size does not cap the total
+number of browsable results. A new list operation invalidates the prior cache,
+and leaving the interactive process stops workers and removes its temporary
+files.
 
 All output must be English. Use `info:`, `warning:`, and `error:` prefixes.
 General and command-specific help must explain required fields, defaults,

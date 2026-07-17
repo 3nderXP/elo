@@ -57,6 +57,14 @@ elo_ui_choose_header() {
     --height 14 "$@"
 }
 
+elo_ui_choose_header_selected() {
+  local header="$1" selected="$2"
+  shift 2
+  "$ELO_GUM_COMMAND" choose --header "$header" --selected "$selected" \
+    --cursor "› " --cursor.foreground "$ELO_UI_ACCENT" \
+    --selected.foreground "$ELO_UI_ACCENT" --height 14 "$@"
+}
+
 elo_ui_input() {
   local prompt="$1" placeholder="${2:-}" value="${3:-}"
   "$ELO_GUM_COMMAND" input --prompt "$prompt: " --prompt.foreground "$ELO_UI_ACCENT" \
@@ -66,6 +74,26 @@ elo_ui_input() {
 elo_ui_confirm() {
   "$ELO_GUM_COMMAND" confirm --prompt.foreground "$ELO_UI_ACCENT" \
     --selected.background "$ELO_UI_ACCENT" "$1"
+}
+
+elo_ui_navigation_action() {
+  local preferred="$1" option selected=""
+  shift
+  for option in "$@"; do
+    [[ "$option" == "$preferred" ]] && selected="$preferred"
+  done
+  if [[ -z "$selected" ]]; then
+    case "$preferred" in
+      Next | Last)
+        for option in "$@"; do [[ "$option" == "Previous" ]] && selected=Previous; done
+        ;;
+      Previous | First)
+        for option in "$@"; do [[ "$option" == "Next" ]] && selected=Next; done
+        ;;
+    esac
+  fi
+  [[ -n "$selected" ]] || selected="$1"
+  elo_ui_choose_header_selected "Navigate results" "$selected" "$@"
 }
 
 elo_ui_cleanup() {
@@ -149,7 +177,7 @@ elo_ui_cache_adjacent_pages() {
 
 elo_ui_paginate_snapshot() {
   local title="$1" header_count="$2" snapshot="$3"
-  local page=0 line_count data_count total_pages action
+  local page=0 line_count data_count total_pages action last_action=Next
   local -a actions
   line_count="$(wc -l <"$snapshot")"
   data_count=$((line_count - header_count))
@@ -169,13 +197,16 @@ elo_ui_paginate_snapshot() {
     printf '\n'
 
     actions=()
-    ((page > 0)) && actions+=("Previous")
-    ((page + 1 < total_pages)) && actions+=("Next")
+    if ((page > 0)); then actions+=("First" "Previous"); fi
+    if ((page + 1 < total_pages)); then actions+=("Next" "Last"); fi
     actions+=("Back")
-    action="$(elo_ui_choose_header "Navigate results" "${actions[@]}")" || return 0
+    action="$(elo_ui_navigation_action "$last_action" "${actions[@]}")" || return 0
+    last_action="$action"
     case "$action" in
+      First) page=0 ;;
       Previous) page=$((page - 1)) ;;
       Next) page=$((page + 1)) ;;
+      Last) page=$((total_pages - 1)) ;;
       *) return 0 ;;
     esac
   done
@@ -210,8 +241,8 @@ elo_ui_run_with_spinner() {
 }
 
 elo_ui_lazy_page_start() {
-  local page="$1" loader="$2" target temporary errors status_file status_temp status pid
-  shift 2
+  local page="$1" page_size="$2" loader="$3" target temporary errors status_file status_temp status pid
+  shift 3
   target="$ELO_UI_CACHE_DIR/page-$page"
   [[ -f "$target" || -f "$target.loading" ]] && return 0
   temporary="$target.tmp"
@@ -220,7 +251,7 @@ elo_ui_lazy_page_start() {
   status_temp="$status_file.tmp"
   : >"$target.loading"
   (
-    if "$loader" "$page" "$ELO_UI_PAGE_SIZE" "$@" >"$temporary" 2>"$errors"; then
+    if "$loader" "$page" "$page_size" "$@" >"$temporary" 2>"$errors"; then
       status=0
       mv -- "$temporary" "$target"
     else
@@ -236,11 +267,11 @@ elo_ui_lazy_page_start() {
 }
 
 elo_ui_lazy_page_ensure() {
-  local title="$1" page="$2" loader="$3" target pid status
-  shift 3
+  local title="$1" page="$2" page_size="$3" loader="$4" target pid status
+  shift 4
   target="$ELO_UI_CACHE_DIR/page-$page"
   [[ -f "$target" ]] && return 0
-  elo_ui_lazy_page_start "$page" "$loader" "$@" || return
+  elo_ui_lazy_page_start "$page" "$page_size" "$loader" "$@" || return
   pid="$(sed -n '1p' "$target.pid")"
   if ! elo_ui_wait_for_status "Loading $title page $((page + 1))..." "$target.status" "$pid"; then
     elo_ui_cache_forget_pid "$pid"
@@ -254,14 +285,15 @@ elo_ui_lazy_page_ensure() {
 }
 
 elo_ui_lazy_paginate() {
-  local title="$1" item_count="$2" loader="$3" page=0 total_pages action
+  local title="$1" item_count="$2" page_size="$3" loader="$4"
+  local page=0 total_pages action last_action=Next
   local -a actions
-  shift 3
-  total_pages=$(((item_count + ELO_UI_PAGE_SIZE - 1) / ELO_UI_PAGE_SIZE))
+  shift 4
+  total_pages=$(((item_count + page_size - 1) / page_size))
   ((total_pages == 0)) && total_pages=1
   ELO_UI_SKIP_PAUSE=1
   while true; do
-    elo_ui_lazy_page_ensure "$title" "$page" "$loader" "$@" || return
+    elo_ui_lazy_page_ensure "$title" "$page" "$page_size" "$loader" "$@" || return
     clear
     elo_ui_header
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ACCENT" --bold \
@@ -269,16 +301,19 @@ elo_ui_lazy_paginate() {
     printf '\n'
     cat -- "$ELO_UI_CACHE_DIR/page-$page"
     printf '\n'
-    ((page > 0)) && elo_ui_lazy_page_start "$((page - 1))" "$loader" "$@"
-    ((page + 1 < total_pages)) && elo_ui_lazy_page_start "$((page + 1))" "$loader" "$@"
+    ((page > 0)) && elo_ui_lazy_page_start "$((page - 1))" "$page_size" "$loader" "$@"
+    ((page + 1 < total_pages)) && elo_ui_lazy_page_start "$((page + 1))" "$page_size" "$loader" "$@"
     actions=()
-    ((page > 0)) && actions+=("Previous")
-    ((page + 1 < total_pages)) && actions+=("Next")
+    if ((page > 0)); then actions+=("First" "Previous"); fi
+    if ((page + 1 < total_pages)); then actions+=("Next" "Last"); fi
     actions+=("Back")
-    action="$(elo_ui_choose_header "Navigate results" "${actions[@]}")" || return 0
+    action="$(elo_ui_navigation_action "$last_action" "${actions[@]}")" || return 0
+    last_action="$action"
     case "$action" in
+      First) page=0 ;;
       Previous) page=$((page - 1)) ;;
       Next) page=$((page + 1)) ;;
+      Last) page=$((total_pages - 1)) ;;
       *) elo_ui_cache_stop_jobs; return 0 ;;
     esac
   done
@@ -287,6 +322,29 @@ elo_ui_lazy_paginate() {
 elo_ui_addons_page_loader() {
   local page="$1" page_size="$2" instance="$3" inventory="$4"
   elo_addons_list_inventory_page "$instance" "$inventory" "$((page * page_size))" "$page_size"
+}
+
+elo_ui_search_page_loader() {
+  local page="$1" page_size="$2" provider="$3" query="$4" type="$5" instance="$6"
+  local response total results total_temp
+  response="$(elo_search_page "$provider" "$query" "$type" "$instance" \
+    "$page_size" "$((page * page_size))")" || return
+  total="$(printf '%s\n' "$response" | sed -n '1p')"
+  results="$(printf '%s\n' "$response" | sed -n '2,$p')"
+  if ((page == 0)); then
+    total_temp="$ELO_UI_CACHE_DIR/search-total.tmp"
+    printf '%s\n' "$total" >"$total_temp"
+    mv -- "$total_temp" "$ELO_UI_CACHE_DIR/search-total"
+  fi
+  printf '%-10s %-20s %-12s %-36s %s\n' ID SLUG TYPE NAME DOWNLOADS
+  if [[ -z "$results" ]]; then
+    elo_info "No addons found."
+  else
+    printf '%s\n' "$results" | while IFS=$'\t' read -r id slug result_type name downloads; do
+      printf '%-10s %-20s %-12s %-36s %s\n' \
+        "$id" "$slug" "$result_type" "$name" "$downloads"
+    done
+  fi
 }
 
 elo_ui_paginated_command() {
@@ -388,8 +446,7 @@ elo_ui_remove_instance() {
 }
 
 elo_ui_search() {
-  local query type_choice type="" instance_choice instance="" provider limit default_filter
-  local -a args
+  local query type_choice type="" instance_choice instance="" provider page_size default_filter total
   query="$(elo_ui_input "Search query" "sodium")" || return 0
   [[ -n "$query" ]] || return 0
   type_choice="$(elo_ui_choose_header "Addon type" "Any type" "Mod" "Resource pack" "Shader")" || return 0
@@ -414,14 +471,25 @@ elo_ui_search() {
     esac
   fi
   provider="$(elo_ui_select_provider "Search provider")" || return 0
-  limit="$(elo_ui_input "Maximum results (1-100)" "50" "50")" || return 0
-  [[ -n "$limit" ]] || limit=50
+  provider="${provider:-$(elo_preferred_provider)}"
+  instance="${instance:-$(elo_active_instance)}"
+  page_size="$(elo_ui_input "Items per page (1-100)" "10" "10")" || return 0
+  [[ -n "$page_size" ]] || page_size=10
+  [[ "$page_size" =~ ^[0-9]+$ ]] && ((page_size >= 1 && page_size <= 100)) || {
+    elo_warn "Page size must be between 1 and 100."
+    return 1
+  }
 
-  args=("$query" --limit "$limit")
-  [[ -n "$type" ]] && args+=(--type "$type")
-  [[ -n "$instance" ]] && args+=(--instance "$instance")
-  [[ -n "$provider" ]] && args+=(--provider "$provider")
-  elo_ui_paginated_command "Search results" 1 elo_cmd_search "${args[@]}"
+  elo_ui_cache_reset || return
+  elo_ui_lazy_page_ensure "Search results" 0 "$page_size" elo_ui_search_page_loader \
+    "$provider" "$query" "$type" "$instance" || return
+  total="$(sed -n '1p' "$ELO_UI_CACHE_DIR/search-total")"
+  [[ "$total" =~ ^[0-9]+$ ]] || {
+    elo_die "Search provider returned an invalid total result count."
+    return 1
+  }
+  elo_ui_lazy_paginate "Search results" "$total" "$page_size" \
+    elo_ui_search_page_loader "$provider" "$query" "$type" "$instance"
 }
 
 elo_ui_install() {
@@ -448,7 +516,7 @@ elo_ui_addons_list() {
   elo_ui_run_with_spinner "Indexing addons in $instance..." \
     "$inventory" "$errors" "$status_file" elo_addons_list_inventory "$instance" || return
   item_count="$(wc -l <"$inventory")"
-  elo_ui_lazy_paginate "Addons in $instance" "$item_count" \
+  elo_ui_lazy_paginate "Addons in $instance" "$item_count" "$ELO_UI_PAGE_SIZE" \
     elo_ui_addons_page_loader "$instance" "$inventory"
 }
 

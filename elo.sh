@@ -34,6 +34,8 @@ source "$ELO_SCRIPT_DIR/lib/self.sh"
 source "$ELO_SCRIPT_DIR/lib/provider_modrinth.sh"
 # shellcheck source=lib/provider.sh
 source "$ELO_SCRIPT_DIR/lib/provider.sh"
+# shellcheck source=lib/mrpack.sh
+source "$ELO_SCRIPT_DIR/lib/mrpack.sh"
 # shellcheck source=lib/interactive.sh
 source "$ELO_SCRIPT_DIR/lib/interactive.sh"
 
@@ -46,6 +48,8 @@ elo_dispatch_instances() {
   fi
   case "$action" in
     create) elo_cmd_new "$@" ;;
+    import) elo_cmd_import_mrpack "$@" ;;
+    version) elo_cmd_instance_version "$@" ;;
     activate) elo_cmd_link "$@" ;;
     reset) elo_cmd_reset "$@" ;;
     list) elo_cmd_list "$@" ;;

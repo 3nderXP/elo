@@ -76,6 +76,7 @@ elo_provider_modrinth_resolve() {
     mod) compatibility_loader="$loader" ;;
     resourcepack) compatibility_loader="minecraft" ;;
     shader) compatibility_loader="$platform" ;;
+    modpack) compatibility_loader="" ;;
   esac
   if [[ -n "$requested_version" ]]; then
     versions="$(elo_provider_modrinth_request "/version/$requested_version")" || return
@@ -93,7 +94,13 @@ elo_provider_modrinth_resolve() {
   jq -cn --argjson project "$project" --argjson versions "$versions" '
     if ($versions | length) == 0 then error("no compatible version") else
       ($versions[0]) as $version |
-      ($version.files | map(select(.primary == true)) | .[0] // $version.files[0]) as $file |
+      (if $project.project_type == "modpack" then
+        (($version.files | map(select(.filename | endswith(".mrpack"))) |
+          map(select(.primary == true)) | .[0]) //
+         ($version.files | map(select(.filename | endswith(".mrpack"))) | .[0]))
+       else
+        (($version.files | map(select(.primary == true)) | .[0]) // $version.files[0])
+       end) as $file |
       if $file == null then error("version has no downloadable file") else {
         project_id: $project.id, slug: $project.slug, name: $project.title,
         type: $project.project_type, version_id: $version.id,
@@ -113,7 +120,11 @@ elo_provider_modrinth_get_dependencies() {
 elo_provider_modrinth_download() {
   local version_id="$1" target_dir="$2" version file filename url temporary
   version="$(elo_provider_modrinth_request "/version/$version_id")" || return
-  file="$(printf '%s' "$version" | jq -c '(.files | map(select(.primary == true)) | .[0]) // .files[0]')"
+  file="$(printf '%s' "$version" | jq -c '
+    ((.files | map(select(.filename | endswith(".mrpack"))) |
+      map(select(.primary == true)) | .[0]) //
+     (.files | map(select(.filename | endswith(".mrpack"))) | .[0]) //
+     (.files | map(select(.primary == true)) | .[0]) // .files[0])')"
   filename="$(printf '%s' "$file" | jq -r '.filename // empty')"
   url="$(printf '%s' "$file" | jq -r '.url // empty')"
   if [[ -z "$filename" || -z "$url" || "$filename" == */* || "$filename" == *$'\n'* ]]; then

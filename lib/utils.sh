@@ -4,6 +4,21 @@ elo_info() {
   printf 'info: %s\n' "$*"
 }
 
+elo_progress() {
+  local label="$1" current="$2" total="$3" width=42 filled empty percent bar i
+  (( total > 0 )) || return 0
+  percent=$((current * 100 / total)); filled=$((current * width / total)); empty=$((width - filled))
+  if [[ -t 1 ]]; then
+    bar=""
+    for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+    for ((i=0; i<empty; i++)); do bar="${bar}▒"; done
+    printf '\r\033[2K%s [%s] %3d%% (%d/%d) %s' "$label" "$bar" "$percent" "$current" "$total" "${4:-}"
+    (( current == total )) && printf '\n'
+  else
+    elo_info "$label progress: $current/$total ($percent%): ${4:-}"
+  fi
+}
+
 elo_warn() {
   printf 'warning: %s\n' "$*" >&2
 }
@@ -81,10 +96,20 @@ elo_validate_instance_name() {
 
 elo_validate_managed_folder() {
   local folder="$1"
-  if [[ ! "$folder" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  elo_validate_managed_path "$folder" || {
     elo_die "Invalid name in MANAGED_FOLDERS: $folder"
     return 1
-  fi
+  }
+}
+
+elo_validate_managed_path() {
+  local path="$1" part
+  [[ -n "$path" && "$path" != /* && "$path" != */ && "$path" != *//* && \
+    "$path" != *$'\n'* && "$path" != *$'\r'* && "$path" != *$'\t'* && \
+    "$path" != *\\* && "$path" != *'='* && ! "$path" =~ ^[a-zA-Z]: ]] || return 1
+  while IFS= read -r part || [[ -n "$part" ]]; do
+    [[ -n "$part" && "$part" != "." && "$part" != ".." ]] || return 1
+  done < <(printf '%s' "$path" | tr '/' '\n')
 }
 
 elo_require_value() {

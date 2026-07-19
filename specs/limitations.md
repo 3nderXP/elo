@@ -3,8 +3,13 @@
 - No concurrent-process lock or transaction journal
 - No user-facing rollback command
 - One configured `.minecraft` directory
+- Root instance files and pack-managed trees (`options.txt`, `servers.dat`,
+  `icon.png`, `data`, `defaultconfigs`, `kubejs`, `scripts`) are tracked per
+  instance through `MANAGED_PATHS`; transient logs, caches, crash reports and
+  screenshots remain unmanaged
 - Modrinth only; no CurseForge provider or provider authentication
 - No automatic loader installation
+- `.mrpack` overrides outside the supported managed paths are skipped
 - Shader ZIP installation does not install or configure Iris or OptiFine; Elo
   only uses that platform choice to resolve compatible provider versions
 - Orphan cleanup cannot infer optional or external-addon relationships

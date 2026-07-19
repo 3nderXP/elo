@@ -54,6 +54,8 @@ test_instance_lifecycle() {
 
   mkdir -p -- "$MINECRAFT_PATH/mods"
   printf 'original\n' >"$MINECRAFT_PATH/mods/original.txt"
+  mkdir -p -- "$MINECRAFT_PATH/saves/OriginalWorld"
+  printf 'level\n' >"$MINECRAFT_PATH/saves/OriginalWorld/level.dat"
 
   "$ELO" instances create alpha --version 1.20.1 --loader fabric >/dev/null
   "$ELO" instances create beta --version 1.21 --loader neoforge >/dev/null
@@ -67,6 +69,8 @@ test_instance_lifecycle() {
   "$ELO" instances activate alpha --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
+  assert_link_target "$MINECRAFT_PATH/saves" "$ELO_HOME/instances/alpha/saves"
+  assert_file "$ELO_HOME/backups/original/saves.bak/OriginalWorld/level.dat"
 
   "$ELO" instances activate beta --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/beta/mods"
@@ -78,6 +82,7 @@ test_instance_lifecycle() {
 
   "$ELO" instances reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
+  assert_file "$MINECRAFT_PATH/saves/OriginalWorld/level.dat"
   [[ ! -L "$MINECRAFT_PATH/mods" ]] || fail "mods should no longer be a symlink"
   assert_absent "$MINECRAFT_PATH/resourcepacks"
 
@@ -161,12 +166,37 @@ test_help_is_explicit() {
   assert_contains "$output" "replace"
   assert_contains "$output" "permanently removes"
 
+  output="$("$ELO" help instances version)"
+  assert_contains "$output" "--migrate"
+  assert_contains "$output" "modified files"
+  assert_contains "$output" "break startup"
+
   output="$("$ELO" help update)"
   assert_contains "$output" "latest stable"
   assert_contains "$output" "exact SemVer"
   assert_contains "$output" "--version <version>"
 
   pass "help distinguishes fields and explains effects"
+}
+
+test_instance_version_change() {
+  local output config
+  setup_environment version-change
+  "$ELO" instances create alpha --version 1.21.1 --loader fabric >/dev/null
+
+  output="$("$ELO" instances version alpha 1.20.1 --dry-run 2>&1)"
+  assert_contains "$output" "Minecraft version downgrade: 1.21.1 -> 1.20.1"
+  config="$(cat "$ELO_HOME/instances/alpha/instance.conf")"
+  assert_contains "$config" "MINECRAFT_VERSION=1.21.1"
+
+  if "$ELO" instances version alpha 1.20.1 >/dev/null 2>&1; then
+    fail "version change should require confirmation"
+  fi
+  "$ELO" instances version alpha 1.20.1 --yes >/dev/null 2>&1
+  config="$(cat "$ELO_HOME/instances/alpha/instance.conf")"
+  assert_contains "$config" "MINECRAFT_VERSION=1.20.1"
+
+  pass "instance version changes classify direction and require confirmation"
 }
 
 test_legacy_commands_are_removed() {
@@ -229,6 +259,7 @@ test_remove_requires_reset
 test_paths_with_spaces
 test_help_is_explicit
 test_confirmation_is_required
+test_instance_version_change
 test_interactive_mode_requires_terminal
 test_legacy_commands_are_removed
 

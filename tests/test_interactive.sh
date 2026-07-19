@@ -142,6 +142,7 @@ elo_test_record() {
 }
 
 elo_cmd_search() { elo_test_record search "$@"; }
+elo_cmd_import_mrpack() { elo_test_record import-mrpack "$@"; }
 elo_search_page() {
   local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
   if [[ "$offset" == "0" ]]; then
@@ -193,17 +194,29 @@ elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Last Back
 elo_ui_search >/dev/null
 assert_contains "$TEST_ROOT/search-offsets" 50
 
-elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
+elo_test_queue alpha "Provider project" sodium "Use preferred (modrinth)" "Preview only (dry run)"
 elo_ui_install
 assert_call $'install\nalpha\nsodium\n--dry-run'
 
-elo_test_queue alpha psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
+elo_test_queue alpha "Provider project" psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
 elo_ui_install
 assert_call $'install\nalpha\npsx-core\n--platform\niris\n--dry-run'
+
+elo_test_queue alpha "Local .mrpack file" "$TEST_ROOT/example.mrpack" "Preview only (dry run)"
+elo_ui_install
+assert_call $'install\nalpha\n'"$TEST_ROOT"$'/example.mrpack\n--dry-run'
+assert_contains "$GUM_CALLS" "file $HOME --file"
+assert_contains "$GUM_CALLS" "--height 0 --show-help --all"
+assert_contains "$GUM_CALLS" "→ enter folder"
 
 elo_test_queue alpha "Replace existing directories permanently"
 elo_ui_activate
 assert_call $'activate\nalpha\n--mode\nreplace'
+
+elo_test_queue "$TEST_ROOT/example.mrpack" imported-pack
+elo_ui_import_mrpack
+assert_call $'import-mrpack\nimported-pack\n'"$TEST_ROOT"$'/example.mrpack'
+assert_contains "$GUM_CALLS" "file $HOME --file"
 
 elo_test_queue alpha Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar"
 elo_ui_adopt
@@ -296,11 +309,11 @@ elo_test_queue Instances Back
 elo_ui_help
 
 for label in \
-  "Create instance" "Activate or switch instance" "Reset managed links" \
+  "Create instance" "Import Modrinth modpack" "Activate or switch instance" "Reset managed links" \
   "Search addons" "Install addon" "Adopt external addon" "Remove addon" \
   "Provider settings" "Status" "Update Elo" "Uninstall Elo" \
   "Search Install List Adopt Remove Provider" \
-  "Create Activate Reset List Remove"; do
+  "Create Import Activate Reset List Remove"; do
   assert_contains "$MENUS" "$label"
 done
 

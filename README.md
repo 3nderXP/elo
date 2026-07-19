@@ -164,6 +164,9 @@ instance. Keep the recommended backup mode unless you deliberately want to
 delete existing managed directories. On first activation, Elo backs up those
 directories and connects `.minecraft` to the selected instance.
 
+To create the instance from a local Modrinth modpack instead, choose
+**Import Modrinth modpack**, select the `.mrpack`, and provide an instance name.
+
 ### 5. Search and install addons
 
 Choose **Addons**, then **Search addons**. Enter a query such as `sodium` and
@@ -192,8 +195,13 @@ Removal commands always recalculate the current hash before deleting a managed
 addon.
 
 To install a result, choose **Addons**, then **Install addon**, select the
-instance, and enter the project ID or slug. You may preview the dependency plan
-with dry-run mode or continue with installation and confirmation.
+instance, then choose a provider project or local `.mrpack` file. Provider
+modpacks are downloaded through the Modrinth API. You may preview the plan with
+dry-run mode or continue with installation and confirmation. Elo recommends an
+empty instance when installing a modpack and warns when the selected instance
+already contains files.
+The local file picker starts at your home directory and supports normal folder
+navigation.
 
 The guided interface also exposes addon listing, external-file adoption, both
 removal forms, provider settings, instance reset and removal, status, updates,
@@ -210,9 +218,13 @@ elo instances create fabric-1_21 \
   --version 1.21.1 \
   --loader fabric
 
+elo instances import potato-edition "./Potato Edition.mrpack"
+
 elo instances activate fabric-1_21
 elo addons search sodium --instance fabric-1_21
 elo addons install fabric-1_21 sodium
+elo addons install fabric-1_21 fabulously-optimized
+elo addons install fabric-1_21 "./Potato Edition.mrpack"
 elo addons list fabric-1_21
 elo status
 ```
@@ -268,6 +280,7 @@ restores the original directories.
 | Command | Purpose |
 | --- | --- |
 | `elo instances create <name>` | Create an instance |
+| `elo instances import <name> <file.mrpack>` | Install a local Modrinth modpack |
 | `elo instances activate <name>` | Activate or switch to an instance |
 | `elo instances list` | List instances, versions, loaders, and active state |
 | `elo instances reset` | Stop management and restore original directories |
@@ -301,7 +314,7 @@ elo instances remove neoforge-1_21 --reset
 | Command | Purpose |
 | --- | --- |
 | `elo addons search <query>` | Search provider projects |
-| `elo addons install <instance> <id-or-slug>` | Install an addon and dependencies |
+| `elo addons install <instance> <id-or-slug|file.mrpack>` | Install an addon or Modrinth modpack |
 | `elo addons list <instance>` | Report managed, modified, missing, and external files |
 | `elo addons adopt <instance> <path>` | Register an existing external file |
 | `elo addons remove <instance> <id-or-slug>` | Remove a managed addon |

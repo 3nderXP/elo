@@ -54,6 +54,8 @@ test_instance_lifecycle() {
 
   mkdir -p -- "$MINECRAFT_PATH/mods"
   printf 'original\n' >"$MINECRAFT_PATH/mods/original.txt"
+  mkdir -p -- "$MINECRAFT_PATH/saves/OriginalWorld"
+  printf 'level\n' >"$MINECRAFT_PATH/saves/OriginalWorld/level.dat"
 
   "$ELO" instances create alpha --version 1.20.1 --loader fabric >/dev/null
   "$ELO" instances create beta --version 1.21 --loader neoforge >/dev/null
@@ -67,6 +69,8 @@ test_instance_lifecycle() {
   "$ELO" instances activate alpha --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/alpha/mods"
   assert_file "$ELO_HOME/backups/original/mods.bak/original.txt"
+  assert_link_target "$MINECRAFT_PATH/saves" "$ELO_HOME/instances/alpha/saves"
+  assert_file "$ELO_HOME/backups/original/saves.bak/OriginalWorld/level.dat"
 
   "$ELO" instances activate beta --yes >/dev/null
   assert_link_target "$MINECRAFT_PATH/mods" "$ELO_HOME/instances/beta/mods"
@@ -78,6 +82,7 @@ test_instance_lifecycle() {
 
   "$ELO" instances reset --yes >/dev/null
   assert_file "$MINECRAFT_PATH/mods/original.txt"
+  assert_file "$MINECRAFT_PATH/saves/OriginalWorld/level.dat"
   [[ ! -L "$MINECRAFT_PATH/mods" ]] || fail "mods should no longer be a symlink"
   assert_absent "$MINECRAFT_PATH/resourcepacks"
 

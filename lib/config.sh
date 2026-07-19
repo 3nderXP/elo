@@ -9,7 +9,7 @@ ELO_STATE_FILE="$ELO_HOME/state.conf"
 ELO_INSTANCES_DIR="$ELO_HOME/instances"
 ELO_BACKUP_DIR="$ELO_HOME/backups/original"
 ELO_ADDON_CACHE_DIR="$ELO_HOME/cache/addons"
-ELO_DEFAULT_MANAGED_FOLDERS="mods resourcepacks shaderpacks config"
+ELO_DEFAULT_MANAGED_FOLDERS="mods resourcepacks shaderpacks config saves"
 
 elo_kv_get() {
   local file="$1"
@@ -119,7 +119,12 @@ elo_minecraft_path() {
 elo_managed_folders() {
   local folders
   folders="$(elo_config_get MANAGED_FOLDERS || true)"
-  printf '%s\n' "${folders:-$ELO_DEFAULT_MANAGED_FOLDERS}"
+  folders="${folders:-$ELO_DEFAULT_MANAGED_FOLDERS}"
+  case " $folders " in
+    *" saves "*) ;;
+    *) folders="$folders saves" ;;
+  esac
+  printf '%s\n' "$folders"
 }
 
 elo_active_instance() {
@@ -130,6 +135,16 @@ elo_preferred_provider() {
   local provider
   provider="$(elo_config_get PREFERRED_PROVIDER || true)"
   printf '%s\n' "${provider:-modrinth}"
+}
+
+elo_instance_managed_paths() {
+  local instance="$1" paths path
+  paths="$(elo_kv_get "$(elo_instance_dir "$instance")/instance.conf" MANAGED_PATHS || true)"
+  while IFS= read -r path || [[ -n "$path" ]]; do
+    [[ -n "$path" ]] || continue
+    elo_validate_managed_path "$path" || continue
+    printf '%s\n' "$path"
+  done < <(printf '%s' "$paths" | tr ',' '\n')
 }
 
 elo_cmd_init() {

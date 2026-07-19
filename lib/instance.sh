@@ -13,6 +13,8 @@ elo_require_instance() {
     elo_die "Instance not found: $name"
     return 1
   fi
+  # Migrate instances created before per-instance save isolation.
+  mkdir -p -- "$directory/saves"
 }
 
 elo_cmd_new() {
@@ -52,7 +54,7 @@ elo_cmd_new() {
     return
   fi
 
-  mkdir -p -- "$directory"/{mods,resourcepacks,shaderpacks,config}
+  mkdir -p -- "$directory"/{mods,resourcepacks,shaderpacks,config,saves}
   : >"$directory/instance.conf"
   elo_kv_set "$directory/instance.conf" INSTANCE_NAME "$name"
   elo_kv_set "$directory/instance.conf" MINECRAFT_VERSION "$version"

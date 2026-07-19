@@ -13,6 +13,7 @@ lib/update.sh         release selection and installer delegation
 lib/self.sh           installer-owned self-uninstallation
 lib/provider.sh       provider routing, addon registry, and lifecycle
 lib/provider_modrinth.sh Modrinth API requests and downloads
+lib/mrpack.sh         validated local Modrinth modpack instance imports
 lib/interactive.sh     Gum UI that delegates to existing command functions
 lib/launcher.sh        graphical shortcut terminal adapter
 ```
@@ -36,7 +37,8 @@ macOS application bundles, and Warp launch-configuration files carry explicit
 Elo ownership markers and are removed only while those markers remain intact.
 
 Provider modules implement `search`, paginated `search_page`, `project_type`,
-`resolve`, `get_dependencies`, and `download` functions. Paginated search
+`resolve`, `get_dependencies`, and `download` functions. Modpack projects are
+routed through `lib/mrpack.sh` after provider resolution and archive download. Paginated search
 returns the provider's total hit count before its result rows. The provider
 manager owns CLI behavior, recursive dependency coordination, `addons.conf`,
 and derived addon integrity caches; provider-specific modules do not write

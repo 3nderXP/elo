@@ -28,7 +28,7 @@ elo_search_page() {
   local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
   local version="" loader=""
   elo_require_initialized || return
-  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || {
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" || "$type" == "modpack" ]] || {
     elo_die "Invalid addon type: $type"
     return 1
   }
@@ -304,7 +304,7 @@ elo_cmd_search() {
       *) elo_die "Invalid option for search: $1"; return ;;
     esac
   done
-  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || { elo_die "Invalid addon type: $type"; return; }
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" || "$type" == "modpack" ]] || { elo_die "Invalid addon type: $type"; return; }
   [[ "$limit" =~ ^[0-9]+$ ]] && ((limit >= 1 && limit <= 100)) || { elo_die "--limit must be between 1 and 100."; return; }
   instance="${instance:-$(elo_active_instance)}"
   provider="${provider:-$(elo_preferred_provider)}"
@@ -463,7 +463,9 @@ elo_addon_install_recursive() {
     ELO_ADDON_LAST_KEY="$key"
     return 0
   fi
+  elo_progress "Addon" 0 1 "$(printf '%s' "$metadata" | jq -r '.filename // .name')"
   filename="$(elo_provider_call "$provider" download "$(printf '%s' "$metadata" | jq -r '.version_id')" "$target")" || return
+  elo_progress "Addon" 1 1 "$filename"
   metadata="$(printf '%s' "$metadata" | jq -c --arg filename "$filename" '.filename = $filename')"
   actual_hash="$(elo_file_sha512 "$target/$filename")" || return
   if [[ -n "$expected_hash" && "$actual_hash" != "$expected_hash" ]]; then
@@ -478,9 +480,9 @@ elo_addon_install_recursive() {
 }
 
 elo_cmd_install() {
-  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0
+  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0 project_type
   elo_require_initialized || return
-  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug> [options]"; return; fi
+  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug|file.mrpack> [options]"; return; fi
   elo_require_instance "$instance" || return
   shift 2
   while (($# > 0)); do
@@ -497,6 +499,17 @@ elo_cmd_install() {
     return 1
   }
   provider="${provider:-$(elo_preferred_provider)}"
+  if [[ "$addon" == *.mrpack || -f "$addon" || -L "$addon" ]]; then
+    [[ -z "$platform" ]] || { elo_die "--platform cannot be used with a modpack."; return; }
+    elo_mrpack_install_into_instance "$instance" "$addon" "$dry_run" local ""
+    return
+  fi
+  project_type="$(elo_provider_call "$provider" project_type "$addon")" || return
+  if [[ "$project_type" == "modpack" ]]; then
+    [[ -z "$platform" ]] || { elo_die "--platform cannot be used with a modpack."; return; }
+    elo_mrpack_install_from_provider "$instance" "$provider" "$addon" "$dry_run"
+    return
+  fi
   ELO_INSTALL_PLAN_VISITED=""
   ELO_INSTALL_PLAN_LINES=""
   elo_install_plan_resolve "$instance" "$provider" "$addon" addon "" "$platform" || return

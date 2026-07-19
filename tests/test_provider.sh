@@ -76,6 +76,8 @@ assert_contains "$output" "Sodium"
 assert_contains "$(cat "$ELO_TEST_SEARCH_LOG")" "limit=10 offset=0"
 output="$("$ELO" addons search no-results --type mod --instance fabric)"
 assert_contains "$output" "info: No addons found."
+"$ELO" addons search fixture-pack --type modpack --instance fabric >/dev/null
+assert_contains "$(cat "$ELO_TEST_CURL_ARGS_LOG")" "project_type:modpack"
 
 : >"$ELO_TEST_CURL_ARGS_LOG"
 "$ELO" addons search psx-core --type shader --instance fabric >/dev/null

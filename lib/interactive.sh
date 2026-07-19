@@ -110,8 +110,9 @@ elo_ui_confirm() {
 
 elo_ui_file() {
   local header="$1" directory="$2"
+  header="$header (↑↓ navigate · → enter folder · ← parent folder · Enter select · Esc cancel)"
   "$ELO_GUM_COMMAND" file "$directory" --file \
-    --header "$header" --height 14 --cursor "› " \
+    --header "$header" --height 0 --show-help --all --cursor "› " \
     --cursor.foreground "$ELO_UI_GRASS" --header.foreground "$ELO_UI_SKY" \
     --directory.foreground "$ELO_UI_SKY" --symlink.foreground "$ELO_UI_WOOD" \
     --selected.foreground "$ELO_UI_TEXT" --selected.background "$ELO_UI_WOOD" \
@@ -513,6 +514,15 @@ elo_ui_new() {
   elo_cmd_new "$name" --version "$version" --loader "$loader"
 }
 
+elo_ui_import_mrpack() {
+  local pack name
+  pack="$(elo_ui_file "Select a Modrinth .mrpack file" "$HOME")" || return 0
+  [[ -n "$pack" ]] || return 0
+  name="$(elo_ui_input "New instance name" "fabric-modpack")" || return 0
+  [[ -n "$name" ]] || return 0
+  elo_cmd_import_mrpack "$name" "$pack"
+}
+
 elo_ui_activate() {
   local instance mode selection
   instance="$(elo_ui_select_instance "Select the instance to activate")" || return 0
@@ -541,9 +551,10 @@ elo_ui_search() {
   local query type_choice type="" instance_choice instance="" provider page_size default_filter total
   query="$(elo_ui_input "Search query" "sodium")" || return 0
   [[ -n "$query" ]] || return 0
-  type_choice="$(elo_ui_choose_header "Addon type" "Any type" "Mod" "Resource pack" "Shader")" || return 0
+  type_choice="$(elo_ui_choose_header "Addon type" "Any type" "Mod" "Modpack" "Resource pack" "Shader")" || return 0
   case "$type_choice" in
     Mod) type="mod" ;;
+    Modpack) type="modpack" ;;
     "Resource pack") type="resourcepack" ;;
     Shader) type="shader" ;;
   esac
@@ -585,25 +596,32 @@ elo_ui_search() {
 }
 
 elo_ui_install() {
-  local instance addon provider project_type platform_choice platform="" mode
+  local instance addon provider project_type platform_choice platform="" mode source
   local -a args
   instance="$(elo_ui_select_instance "Install into which instance?")" || return 0
-  addon="$(elo_ui_input "Addon ID or slug" "sodium")" || return 0
-  [[ -n "$addon" ]] || return 0
-  provider="$(elo_ui_select_provider "Installation provider")" || return 0
-  provider="${provider:-$(elo_preferred_provider)}"
-  project_type="$(elo_provider_call "$provider" project_type "$addon")" || return 0
-  if [[ "$project_type" == "shader" ]]; then
-    platform_choice="$(elo_ui_choose_header "Shader platform" "Iris" "OptiFine")" || return 0
-    case "$platform_choice" in
-      Iris) platform="iris" ;;
-      OptiFine) platform="optifine" ;;
-    esac
+  source="$(elo_ui_choose_header "Installation source" "Provider project" "Local .mrpack file")" || return 0
+  if [[ "$source" == "Local .mrpack file" ]]; then
+    addon="$(elo_ui_file "Select a Modrinth .mrpack file" "$HOME")" || return 0
+    [[ -n "$addon" ]] || return 0
+    provider="$(elo_preferred_provider)"
+  else
+    addon="$(elo_ui_input "Addon ID or slug" "sodium")" || return 0
+    [[ -n "$addon" ]] || return 0
+    provider="$(elo_ui_select_provider "Installation provider")" || return 0
+    provider="${provider:-$(elo_preferred_provider)}"
+    project_type="$(elo_provider_call "$provider" project_type "$addon")" || return 0
+    if [[ "$project_type" == "shader" ]]; then
+      platform_choice="$(elo_ui_choose_header "Shader platform" "Iris" "OptiFine")" || return 0
+      case "$platform_choice" in
+        Iris) platform="iris" ;;
+        OptiFine) platform="optifine" ;;
+      esac
+    fi
   fi
   mode="$(elo_ui_choose_header "Installation mode" "Install addon" "Preview only (dry run)")" || return 0
   args=("$instance" "$addon")
   [[ -n "$platform" ]] && args+=(--platform "$platform")
-  [[ "$provider" != "$(elo_preferred_provider)" ]] && args+=(--provider "$provider")
+  [[ "$source" != "Local .mrpack file" && "$provider" != "$(elo_preferred_provider)" ]] && args+=(--provider "$provider")
   [[ "$mode" == "Preview only (dry run)" ]] && args+=(--dry-run)
   elo_cmd_install "${args[@]}"
 }
@@ -728,9 +746,10 @@ elo_ui_uninstall() {
 
 elo_ui_help_instances() {
   local topic
-  topic="$(elo_ui_choose_header "Instances help" Create Activate Reset List Remove Back)" || return 0
+  topic="$(elo_ui_choose_header "Instances help" Create Import Activate Reset List Remove Back)" || return 0
   case "$topic" in
     Create) elo_help_instances create ;;
+    Import) elo_help_instances import ;;
     Activate) elo_help_instances activate ;;
     Reset) elo_help_instances reset ;;
     List) elo_help_instances list ;;
@@ -768,10 +787,11 @@ elo_ui_help() {
 elo_ui_instances_menu() {
   local action
   action="$(elo_ui_choose_header "Instances" \
-    "Create instance" "Activate or switch instance" "List instances" \
+    "Create instance" "Import Modrinth modpack" "Activate or switch instance" "List instances" \
     "Reset managed links" "Remove instance" "Back")" || return 0
   case "$action" in
     "Create instance") elo_ui_new ;;
+    "Import Modrinth modpack") elo_ui_import_mrpack ;;
     "Activate or switch instance") elo_ui_activate ;;
     "List instances") elo_ui_paginated_command "Instances" 1 "24,12,12,0" elo_cmd_list ;;
     "Reset managed links") elo_cmd_reset ;;

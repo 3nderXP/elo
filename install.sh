@@ -38,6 +38,7 @@ ELO_INSTALL_FILES=(
   "lib/self.sh"
   "lib/provider_modrinth.sh"
   "lib/provider.sh"
+  "lib/mrpack.sh"
   "lib/interactive.sh"
   "lib/launcher.sh"
   "assets/branding/elo.asc"

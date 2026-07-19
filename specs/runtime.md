@@ -5,8 +5,9 @@
 - Bash 3.2 compatibility where practical
 - Strict mode in executables and tests
 - Standard utilities: `mv`, `rm`, `ln`, `readlink`, `mktemp`, `date`, `stat`,
-  `awk`, `sed`, `wc`, `cat`, `kill`, and `sleep`
+  `find`, `awk`, `sed`, `wc`, `cat`, `kill`, and `sleep`
 - `curl` required for remote installation, updates, and provider downloads
+- `unzip` required for local Modrinth `.mrpack` imports
 - Gum v0.17.0 is copied or installed into Elo's private user-space tools
   directory and powers the no-argument interactive interface
 - On Linux and macOS, Gum also powers first-install terminal selection for the
@@ -15,6 +16,11 @@
   https://raw.githubusercontent.com/charmbracelet/gum/refs/heads/main/README.md
   and MUST be checked against `gum <command> --help` for the pinned v0.17.0
   runtime before implementation
+- Gum v0.17.0 provides `spin`, but no native percentage progress-bar command;
+  modpack downloads use Elo's ANSI progress bar on TTYs and `info:` progress
+  lines when output is not a TTY
+- Instance management includes `saves`; each instance has isolated worlds and
+  activation backs up the original Minecraft `saves` directory.
 - `tar` plus `sha256sum` or `shasum` is required for verified Gum installation
 - `jq` required only for provider API commands
 - No authentication required for public Modrinth API access

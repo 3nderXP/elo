@@ -12,6 +12,20 @@ ELO_GUM_VERSION="${ELO_GUM_VERSION:-0.17.0}"
 ELO_GUM_REPOSITORY="${ELO_GUM_REPOSITORY:-charmbracelet/gum}"
 ELO_GUM_FORCE_INSTALL="${ELO_GUM_FORCE_INSTALL:-0}"
 ELO_GUM_PATH=""
+ELO_TERMINAL="${ELO_TERMINAL:-}"
+ELO_TERMINAL_ID=""
+ELO_TERMINAL_COMMAND=""
+ELO_TERMINAL_MODE=""
+ELO_SHORTCUT_ENABLED=""
+ELO_SHORTCUT_EXPLICIT=0
+ELO_SHORTCUT_CONFIGURED=0
+ELO_SHORTCUT_FORCE_SETUP=0
+ELO_APPLICATIONS_DIR="${ELO_APPLICATIONS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/applications}"
+ELO_SHORTCUT_PATH=""
+ELO_PREVIOUS_SHORTCUT_PATH=""
+ELO_WARP_CONFIG_PATH=""
+ELO_PREVIOUS_WARP_CONFIG_PATH=""
+[[ -n "$ELO_TERMINAL" ]] && ELO_SHORTCUT_EXPLICIT=1
 
 ELO_INSTALL_FILES=(
   "elo.sh"
@@ -25,7 +39,9 @@ ELO_INSTALL_FILES=(
   "lib/provider_modrinth.sh"
   "lib/provider.sh"
   "lib/interactive.sh"
+  "lib/launcher.sh"
   "assets/branding/elo.asc"
+  "assets/branding/shortcut-icon.png"
 )
 
 install_info() {
@@ -53,10 +69,14 @@ Options:
   --bin-dir <directory>     Directory where the elo command is created
   --repo <owner/repo>       Repository used for downloads
   --ref <ref>               Branch, tag, or commit used for downloads
+  --terminal <command>      Terminal used by the graphical shortcut
+  --configure-shortcut     Open the graphical shortcut setup again
+  --no-shortcut             Do not create a graphical application shortcut
   --help                    Show this help
 
 Equivalent environment variables:
-  ELO_INSTALL_DIR, ELO_BIN_DIR, ELO_REPOSITORY, ELO_REF, ELO_GUM_VERSION
+  ELO_INSTALL_DIR, ELO_BIN_DIR, ELO_REPOSITORY, ELO_REF, ELO_GUM_VERSION,
+  ELO_TERMINAL, ELO_APPLICATIONS_DIR
 EOF
 }
 
@@ -99,6 +119,22 @@ install_parse_options() {
         install_require_value "$1" "${2:-}"
         ELO_REF="$2"
         shift 2
+        ;;
+      --terminal)
+        install_require_value "$1" "${2:-}"
+        ELO_TERMINAL="$2"
+        ELO_SHORTCUT_EXPLICIT=1
+        shift 2
+        ;;
+      --configure-shortcut)
+        ELO_SHORTCUT_FORCE_SETUP=1
+        ELO_SHORTCUT_EXPLICIT=1
+        shift
+        ;;
+      --no-shortcut)
+        ELO_SHORTCUT_ENABLED=0
+        ELO_SHORTCUT_EXPLICIT=1
+        shift
         ;;
       --help | -h)
         install_usage
@@ -239,11 +275,292 @@ install_gum() {
   install_info "Gum installed privately at $ELO_GUM_PATH"
 }
 
+install_config_get() {
+  local file="$1" wanted="$2" key value
+  [[ -f "$file" ]] || return 1
+  while IFS='=' read -r key value; do
+    if [[ "$key" == "$wanted" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  done <"$file"
+  return 1
+}
+
+install_terminal_metadata() {
+  local requested="$1" resolved basename id mode label directory
+
+  resolved="$(command -v -- "$requested" 2>/dev/null || true)"
+  if [[ -z "$resolved" && "$requested" == */* && -x "$requested" && ! -d "$requested" ]]; then
+    directory="$(cd "$(dirname "$requested")" && pwd -P)"
+    resolved="$directory/$(basename "$requested")"
+  fi
+  [[ -n "$resolved" && -x "$resolved" && ! -d "$resolved" ]] || return 1
+  basename="$(basename "$resolved")"
+  case "$basename" in
+    warp-terminal) id=warp; mode=warp; label=Warp ;;
+    kitty) id=kitty; mode=direct; label=Kitty ;;
+    gnome-terminal) id=gnome-terminal; mode=double-dash; label="GNOME Terminal" ;;
+    kgx) id=kgx; mode=double-dash; label="GNOME Console" ;;
+    konsole) id=konsole; mode=dash-e; label=Konsole ;;
+    xfce4-terminal) id=xfce4-terminal; mode=xfce; label="Xfce Terminal" ;;
+    mate-terminal) id=mate-terminal; mode=double-dash; label="MATE Terminal" ;;
+    tilix) id=tilix; mode=dash-e; label=Tilix ;;
+    wezterm) id=wezterm; mode=wezterm; label=WezTerm ;;
+    alacritty) id=alacritty; mode=dash-e; label=Alacritty ;;
+    foot | footclient) id="$basename"; mode=direct; label=foot ;;
+    qterminal) id=qterminal; mode=dash-e; label=QTerminal ;;
+    lxterminal) id=lxterminal; mode=dash-e; label=LXTerminal ;;
+    xterm) id=xterm; mode=dash-e; label=XTerm ;;
+    *) id=custom; mode=dash-e; label="$basename" ;;
+  esac
+  printf '%s\t%s\t%s\t%s\n' "$id" "$resolved" "$mode" "$label"
+}
+
+install_detect_terminals() {
+  local preferred="" candidate record seen=" " path
+  case "${TERM_PROGRAM:-}" in
+    WarpTerminal) preferred=warp-terminal ;;
+    kitty) preferred=kitty ;;
+    WezTerm) preferred=wezterm ;;
+  esac
+  [[ -n "${GNOME_TERMINAL_SCREEN:-}" ]] && preferred=gnome-terminal
+  [[ -n "${KONSOLE_VERSION:-}" ]] && preferred=konsole
+
+  for candidate in "$preferred" warp-terminal kitty gnome-terminal kgx konsole \
+    xfce4-terminal mate-terminal tilix wezterm alacritty foot footclient \
+    qterminal lxterminal xterm; do
+    [[ -n "$candidate" ]] || continue
+    record="$(install_terminal_metadata "$candidate" || true)"
+    [[ -n "$record" ]] || continue
+    path="$(printf '%s\n' "$record" | awk -F '\t' '{ print $2 }')"
+    case "$seen" in *" $path "*) continue ;; esac
+    seen="$seen$path "
+    printf '%s\n' "$record"
+  done
+}
+
+install_has_tty() {
+  (exec 9<>/dev/tty && [[ -t 9 ]]) 2>/dev/null
+}
+
+install_select_custom_terminal() {
+  local requested record style
+  requested="$("$ELO_GUM_PATH" input --prompt "Terminal command: " \
+    --prompt.foreground '#84A66A' --cursor.foreground '#78A9C4' \
+    --placeholder.foreground '#9AA7A0' --placeholder "for example: kitty" \
+    --width 60 </dev/tty)" || return 1
+  [[ -n "$requested" ]] || return 1
+  record="$(install_terminal_metadata "$requested" || true)"
+  [[ -n "$record" ]] || install_die "Terminal command not found or not executable: $requested"
+  IFS=$'\t' read -r ELO_TERMINAL_ID ELO_TERMINAL_COMMAND ELO_TERMINAL_MODE _ <<<"$record"
+  if [[ "$ELO_TERMINAL_ID" == "custom" ]]; then
+    style="$("$ELO_GUM_PATH" choose --header "How does this terminal execute a program?" \
+      --cursor '› ' --cursor.foreground '#84A66A' --header.foreground '#78A9C4' \
+      --selected.foreground '#F1F3EE' --selected.background '#9A7252' \
+      "-e <program>" "-- <program>" "<program> directly" </dev/tty)" || return 1
+    case "$style" in
+      "-- <program>") ELO_TERMINAL_MODE=double-dash ;;
+      "<program> directly") ELO_TERMINAL_MODE=direct ;;
+      *) ELO_TERMINAL_MODE=dash-e ;;
+    esac
+  fi
+}
+
+install_load_shortcut_config() {
+  local config="$ELO_INSTALL_DIR/install.conf" configured
+  [[ -f "$config" ]] || return 1
+  ELO_PREVIOUS_SHORTCUT_PATH="$(install_config_get "$config" SHORTCUT_PATH || true)"
+  ELO_PREVIOUS_WARP_CONFIG_PATH="$(install_config_get "$config" WARP_CONFIG_PATH || true)"
+  configured="$(install_config_get "$config" SHORTCUT_ENABLED || true)"
+  if [[ "$configured" == "0" || "$configured" == "1" ]]; then
+    ELO_SHORTCUT_CONFIGURED=1
+  fi
+  ((ELO_SHORTCUT_EXPLICIT == 0)) || return 0
+  ELO_SHORTCUT_ENABLED="$configured"
+  ELO_TERMINAL_ID="$(install_config_get "$config" TERMINAL_ID || true)"
+  ELO_TERMINAL_COMMAND="$(install_config_get "$config" TERMINAL_COMMAND || true)"
+  ELO_TERMINAL_MODE="$(install_config_get "$config" TERMINAL_MODE || true)"
+  return 0
+}
+
+install_setup_shortcut() {
+  local existing=0 interactive=0 detected choice record label
+  local -a records=() choices=()
+
+  [[ -f "$ELO_INSTALL_DIR/install.conf" ]] && existing=1
+  install_load_shortcut_config || true
+  install_has_tty && interactive=1
+  if ((existing == 1 && ELO_SHORTCUT_CONFIGURED == 1 && ELO_SHORTCUT_EXPLICIT == 0)); then
+    if ((interactive == 0)); then
+      return
+    fi
+    ELO_SHORTCUT_ENABLED=""
+  fi
+  if ((ELO_SHORTCUT_FORCE_SETUP == 1)); then
+    ELO_SHORTCUT_ENABLED=""
+    ELO_TERMINAL=""
+    ELO_TERMINAL_ID=""
+    ELO_TERMINAL_COMMAND=""
+    ELO_TERMINAL_MODE=""
+  fi
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    ELO_SHORTCUT_ENABLED=0
+    ((ELO_SHORTCUT_EXPLICIT == 0)) || install_info "Graphical shortcuts are currently supported on Linux only."
+    return
+  fi
+  if [[ -n "$ELO_TERMINAL" ]]; then
+    record="$(install_terminal_metadata "$ELO_TERMINAL" || true)"
+    [[ -n "$record" ]] || install_die "Terminal command not found or not executable: $ELO_TERMINAL"
+    IFS=$'\t' read -r ELO_TERMINAL_ID ELO_TERMINAL_COMMAND ELO_TERMINAL_MODE _ <<<"$record"
+    ELO_SHORTCUT_ENABLED=1
+    return
+  fi
+  [[ "$ELO_SHORTCUT_ENABLED" != "0" ]] || return 0
+
+  detected="$(install_detect_terminals)"
+  while IFS= read -r record; do
+    IFS=$'\t' read -r _ _ _ label <<<"$record"
+    [[ -n "$label" ]] || continue
+    records+=("$record")
+    choices+=("$label")
+  done <<<"$detected"
+
+  if ((interactive == 1)); then
+    choices+=("Specify another terminal" "Do not create a shortcut")
+    choice="$("$ELO_GUM_PATH" choose --header "Choose the terminal for the Elo shortcut" \
+      --cursor '› ' --cursor.foreground '#84A66A' --header.foreground '#78A9C4' \
+      --selected.foreground '#F1F3EE' --selected.background '#9A7252' \
+      --height 14 "${choices[@]}" </dev/tty)" || install_die "Shortcut setup was cancelled."
+    case "$choice" in
+      "Do not create a shortcut") ELO_SHORTCUT_ENABLED=0; return ;;
+      "Specify another terminal")
+        install_select_custom_terminal || install_die "Shortcut setup was cancelled."
+        ELO_SHORTCUT_ENABLED=1
+        return
+        ;;
+    esac
+    for record in "${records[@]}"; do
+      IFS=$'\t' read -r ELO_TERMINAL_ID ELO_TERMINAL_COMMAND ELO_TERMINAL_MODE label <<<"$record"
+      if [[ "$choice" == "$label" ]]; then
+        ELO_SHORTCUT_ENABLED=1
+        return
+      fi
+    done
+  elif ((${#records[@]} > 0)); then
+    IFS=$'\t' read -r ELO_TERMINAL_ID ELO_TERMINAL_COMMAND ELO_TERMINAL_MODE _ <<<"${records[0]}"
+    ELO_SHORTCUT_ENABLED=1
+    install_info "Using detected terminal for the shortcut: $ELO_TERMINAL_COMMAND"
+    return
+  fi
+  ELO_SHORTCUT_ENABLED=0
+  install_info "No supported terminal was detected; the graphical shortcut was skipped."
+}
+
+install_prepare_shortcut_paths() {
+  ELO_SHORTCUT_PATH=""
+  ELO_WARP_CONFIG_PATH=""
+  [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
+  ELO_SHORTCUT_PATH="$ELO_APPLICATIONS_DIR/elo.desktop"
+  if [[ "$ELO_TERMINAL_MODE" == "warp" ]]; then
+    ELO_WARP_CONFIG_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/warp-terminal/launch_configurations/elo-cli.yaml"
+  fi
+}
+
+install_validate_shortcut_targets() {
+  [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
+  if [[ -e "$ELO_SHORTCUT_PATH" ]] &&
+    ! grep -Fx 'X-Elo-Managed=true' "$ELO_SHORTCUT_PATH" >/dev/null 2>&1; then
+    install_die "Shortcut path exists and is not managed by Elo: $ELO_SHORTCUT_PATH"
+  fi
+  if [[ -n "$ELO_WARP_CONFIG_PATH" && -e "$ELO_WARP_CONFIG_PATH" ]] &&
+    ! grep -Fx '# Managed by the Elo installer.' "$ELO_WARP_CONFIG_PATH" >/dev/null 2>&1; then
+    install_die "Warp launch configuration exists and is not managed by Elo: $ELO_WARP_CONFIG_PATH"
+  fi
+}
+
+install_refresh_desktop_database() {
+  local directory="$1"
+  command -v update-desktop-database >/dev/null 2>&1 || return 0
+  [[ -d "$directory" ]] || return 0
+  update-desktop-database "$directory" >/dev/null 2>&1 || true
+}
+
+install_remove_previous_shortcut_files() {
+  if [[ -n "$ELO_PREVIOUS_SHORTCUT_PATH" && "$ELO_PREVIOUS_SHORTCUT_PATH" != "$ELO_SHORTCUT_PATH" &&
+    -f "$ELO_PREVIOUS_SHORTCUT_PATH" ]] &&
+    grep -Fx 'X-Elo-Managed=true' "$ELO_PREVIOUS_SHORTCUT_PATH" >/dev/null 2>&1; then
+    rm -- "$ELO_PREVIOUS_SHORTCUT_PATH"
+    install_refresh_desktop_database "$(dirname "$ELO_PREVIOUS_SHORTCUT_PATH")"
+  fi
+  if [[ -n "$ELO_PREVIOUS_WARP_CONFIG_PATH" && "$ELO_PREVIOUS_WARP_CONFIG_PATH" != "$ELO_WARP_CONFIG_PATH" &&
+    -f "$ELO_PREVIOUS_WARP_CONFIG_PATH" ]] &&
+    grep -Fx '# Managed by the Elo installer.' "$ELO_PREVIOUS_WARP_CONFIG_PATH" >/dev/null 2>&1; then
+    rm -- "$ELO_PREVIOUS_WARP_CONFIG_PATH"
+  fi
+  return 0
+}
+
+install_desktop_quote() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/`/\\`/g; s/\$/\\$/g; s/%/%%/g'
+}
+
+install_desktop_string() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g'
+}
+
+install_create_shortcut() {
+  local launcher icon temporary quoted_launcher quoted_icon yaml_command yaml_home
+  install_remove_previous_shortcut_files
+  [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
+
+  launcher="$ELO_INSTALL_DIR/current/lib/launcher.sh"
+  icon="$ELO_INSTALL_DIR/current/assets/branding/shortcut-icon.png"
+  mkdir -p "$(dirname "$ELO_SHORTCUT_PATH")"
+  quoted_launcher="$(install_desktop_quote "$launcher")"
+  quoted_icon="$(install_desktop_string "$icon")"
+  temporary="$ELO_SHORTCUT_PATH.tmp.$$"
+  {
+    printf '%s\n' '[Desktop Entry]'
+    printf '%s\n' 'Type=Application'
+    printf '%s\n' 'Version=1.0'
+    printf '%s\n' 'Name=Elo'
+    printf '%s\n' 'Comment=Manage Minecraft instances'
+    printf 'Exec="%s"\n' "$quoted_launcher"
+    printf 'Icon=%s\n' "$quoted_icon"
+    printf '%s\n' 'Terminal=false'
+    printf '%s\n' 'Categories=Game;'
+    printf '%s\n' 'Keywords=Minecraft;mods;instances;'
+    printf '%s\n' 'X-Elo-Managed=true'
+  } >"$temporary"
+  chmod 0644 "$temporary"
+  mv "$temporary" "$ELO_SHORTCUT_PATH"
+  install_refresh_desktop_database "$(dirname "$ELO_SHORTCUT_PATH")"
+
+  if [[ "$ELO_TERMINAL_MODE" == "warp" ]]; then
+    mkdir -p "$(dirname "$ELO_WARP_CONFIG_PATH")"
+    yaml_command="${ELO_BIN_DIR//\'/\'\'}"
+    yaml_command="$yaml_command/elo"
+    yaml_home="${HOME//\'/\'\'}"
+    temporary="$ELO_WARP_CONFIG_PATH.tmp.$$"
+    {
+      printf '%s\n' '# Managed by the Elo installer.' '---' 'name: Elo CLI' 'windows:'
+      printf '%s\n' '  - tabs:' '      - title: Elo' '        layout:'
+      printf "          cwd: '%s'\n" "$yaml_home"
+      printf '%s\n' '          commands:'
+      printf "            - exec: '%s'\n" "$yaml_command"
+    } >"$temporary"
+    chmod 0644 "$temporary"
+    mv "$temporary" "$ELO_WARP_CONFIG_PATH"
+  fi
+  install_info "Application shortcut created at $ELO_SHORTCUT_PATH"
+}
+
 install_write_config() {
   local config="$ELO_INSTALL_DIR/install.conf"
   local temporary="$ELO_INSTALL_DIR/install.conf.tmp.$$"
 
-  case "$ELO_REPOSITORY$ELO_BIN_DIR$ELO_GUM_PATH" in
+  case "$ELO_REPOSITORY$ELO_BIN_DIR$ELO_GUM_PATH$ELO_TERMINAL_COMMAND$ELO_SHORTCUT_PATH$ELO_WARP_CONFIG_PATH" in
     *'
 '*) install_die "Repository and installation paths cannot contain newlines." ;;
   esac
@@ -252,6 +569,12 @@ install_write_config() {
     printf 'REPOSITORY=%s\n' "$ELO_REPOSITORY"
     printf 'BIN_DIR=%s\n' "$ELO_BIN_DIR"
     printf 'GUM_PATH=%s\n' "$ELO_GUM_PATH"
+    printf 'SHORTCUT_ENABLED=%s\n' "${ELO_SHORTCUT_ENABLED:-0}"
+    printf 'SHORTCUT_PATH=%s\n' "$ELO_SHORTCUT_PATH"
+    printf 'TERMINAL_ID=%s\n' "$ELO_TERMINAL_ID"
+    printf 'TERMINAL_COMMAND=%s\n' "$ELO_TERMINAL_COMMAND"
+    printf 'TERMINAL_MODE=%s\n' "$ELO_TERMINAL_MODE"
+    printf 'WARP_CONFIG_PATH=%s\n' "$ELO_WARP_CONFIG_PATH"
   } >"$temporary"
   mv "$temporary" "$config"
 }
@@ -277,10 +600,14 @@ install_activate_release() {
   cp "$stage/elo.sh" "$release/elo.sh"
   cp "$stage"/lib/*.sh "$release/lib/"
   cp "$stage/assets/branding/elo.asc" "$release/assets/branding/elo.asc"
+  cp "$stage/assets/branding/shortcut-icon.png" "$release/assets/branding/shortcut-icon.png"
   chmod +x "$release/elo.sh"
+  chmod +x "$release/lib/launcher.sh"
 
   ln -sfn "$release" "$current"
   ln -sfn "$current/elo.sh" "$command_path"
+
+  install_create_shortcut
 
   install_info "Elo installed at $release"
   install_info "Command created at $command_path"
@@ -307,6 +634,9 @@ main() {
 
   install_validate_stage "$ELO_INSTALL_STAGE"
   install_gum
+  install_setup_shortcut
+  install_prepare_shortcut_paths
+  install_validate_shortcut_targets
   install_activate_release "$ELO_INSTALL_STAGE"
 }
 

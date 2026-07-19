@@ -35,6 +35,7 @@ elo_self_config_get() {
 
 elo_cmd_uninstall() {
   local purge=0 purge_data=0 root config bin_dir command_path legacy_gum legacy_target preserved_gum
+  local shortcut_path shortcut_directory warp_config_path
 
   while (($# > 0)); do
     case "$1" in
@@ -55,6 +56,8 @@ elo_cmd_uninstall() {
     elo_die "The Elo command is not an installer-owned symlink; nothing was removed."
     return 1
   }
+  shortcut_path="$(elo_self_config_get "$config" SHORTCUT_PATH || true)"
+  warp_config_path="$(elo_self_config_get "$config" WARP_CONFIG_PATH || true)"
 
   if ((purge == 1)); then
     if [[ -f "$ELO_CONFIG_FILE" && -d "$ELO_INSTANCES_DIR" ]]; then
@@ -111,6 +114,18 @@ elo_cmd_uninstall() {
     esac
   fi
 
+  if [[ -n "$shortcut_path" && -f "$shortcut_path" ]] &&
+    grep -Fx 'X-Elo-Managed=true' "$shortcut_path" >/dev/null 2>&1; then
+    shortcut_directory="$(dirname "$shortcut_path")"
+    rm -- "$shortcut_path"
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      update-desktop-database "$shortcut_directory" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [[ -n "$warp_config_path" && -f "$warp_config_path" ]] &&
+    grep -Fx '# Managed by the Elo installer.' "$warp_config_path" >/dev/null 2>&1; then
+    rm -- "$warp_config_path"
+  fi
   rm -- "$command_path"
   rm -rf -- "$root"
   if ((purge_data == 1)); then

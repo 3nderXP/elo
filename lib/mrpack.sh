@@ -11,13 +11,15 @@ elo_mrpack_require_tools() {
 }
 
 elo_mrpack_progress() {
-  local current="$1" total="$2" label="$3" width=42 filled empty percent bar
+  local current="$1" total="$2" label="$3" width=42 filled empty percent bar i
   ((total > 0)) || { elo_info "Modpack progress: no downloadable files"; return 0; }
   percent=$((current * 100 / total))
   if [[ -t 1 ]]; then
     filled=$((current * width / total))
     empty=$((width - filled))
-    bar="$(printf '%*s' "$filled" '' | tr ' ' '█')$(printf '%*s' "$empty" '' | tr ' ' '▒')"
+    bar=""
+    for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+    for ((i=0; i<empty; i++)); do bar="${bar}▒"; done
     printf '\r\033[2KModpack [%s] %3d%% (%d/%d) %s' "$bar" "$percent" "$current" "$total" "$label"
     [[ "$current" == "$total" ]] && printf '\n'
   else

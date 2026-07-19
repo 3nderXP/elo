@@ -5,11 +5,13 @@ elo_info() {
 }
 
 elo_progress() {
-  local label="$1" current="$2" total="$3" width=42 filled empty percent bar
+  local label="$1" current="$2" total="$3" width=42 filled empty percent bar i
   (( total > 0 )) || return 0
   percent=$((current * 100 / total)); filled=$((current * width / total)); empty=$((width - filled))
   if [[ -t 1 ]]; then
-    bar="$(printf '%*s' "$filled" '' | tr ' ' '█')$(printf '%*s' "$empty" '' | tr ' ' '▒')"
+    bar=""
+    for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+    for ((i=0; i<empty; i++)); do bar="${bar}▒"; done
     printf '\r\033[2K%s [%s] %3d%% (%d/%d) %s' "$label" "$bar" "$percent" "$current" "$total" "${4:-}"
     (( current == total )) && printf '\n'
   else

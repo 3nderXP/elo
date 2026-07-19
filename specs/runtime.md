@@ -9,6 +9,8 @@
 - `curl` required for remote installation, updates, and provider downloads
 - Gum v0.17.0 is copied or installed into Elo's private user-space tools
   directory and powers the no-argument interactive interface
+- On Linux, Gum also powers first-install terminal selection for the graphical
+  shortcut when a controlling terminal is available
 - Gum changes start from the official raw command reference at
   https://raw.githubusercontent.com/charmbracelet/gum/refs/heads/main/README.md
   and MUST be checked against `gum <command> --help` for the pinned v0.17.0
@@ -16,3 +18,17 @@
 - `tar` plus `sha256sum` or `shasum` is required for verified Gum installation
 - `jq` required only for provider API commands
 - No authentication required for public Modrinth API access
+
+The Linux application shortcut is written under
+`${XDG_DATA_HOME:-$HOME/.local/share}/applications`. Supported adapters include
+Warp, Kitty, GNOME Terminal and Console, Konsole, Xfce Terminal, MATE Terminal,
+Tilix, WezTerm, Alacritty, foot, QTerminal, LXTerminal, and XTerm. A custom
+executable can use direct, `--`, or `-e` program invocation. Warp uses its
+official launch-configuration URI because it does not accept an arbitrary
+program through its normal application executable.
+
+An installation manifest without shortcut fields is migrated through the
+interactive setup. Interactive reinstalls and updates present the choice
+again; non-interactive runs preserve the saved choice. `--configure-shortcut`
+explicitly requests setup, `--terminal <command>` selects an executable without
+prompting, and `--no-shortcut` removes an installer-managed shortcut.

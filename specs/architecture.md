@@ -3,7 +3,7 @@
 ```text
 install.sh            install and activate releases
 elo.sh                bootstrap and command dispatch
-assets/branding/elo.asc installed interactive terminal logo
+assets/branding/{elo.asc,shortcut-icon.png} installed terminal and shortcut branding
 lib/utils.sh          validation, messages, confirmation
 lib/help.sh           help text
 lib/config.sh         configuration and state persistence
@@ -14,6 +14,7 @@ lib/self.sh           installer-owned self-uninstallation
 lib/provider.sh       provider routing, addon registry, and lifecycle
 lib/provider_modrinth.sh Modrinth API requests and downloads
 lib/interactive.sh     Gum UI that delegates to existing command functions
+lib/launcher.sh        graphical shortcut terminal adapter
 ```
 
 `elo.sh` must not contain business logic. Functions use the `elo_` prefix;
@@ -22,10 +23,17 @@ command handlers use `elo_cmd_`. Sensitive filesystem operations belong in
 `.minecraft`.
 
 The installer writes `install.conf` under its installation root with the
-repository, command directory, and private Gum path. Update and
-self-uninstall commands parse this file as data. The update command delegates
+repository, command directory, private Gum path, and graphical-shortcut
+terminal preference. Update, shortcut-launcher, and self-uninstall code parse
+this file as data. The update command delegates
 staged download, validation, and atomic activation to the target release's
 installer.
+
+On Linux, the installer owns terminal detection and Gum-powered shortcut
+setup. The launcher translates the stored preference into terminal-specific
+arguments; CLI runtime code has no terminal-emulator dependency. Desktop and
+Warp launch-configuration files carry explicit Elo ownership markers and are
+removed only while those markers remain intact.
 
 Provider modules implement `search`, paginated `search_page`, `project_type`,
 `resolve`, `get_dependencies`, and `download` functions. Paginated search

@@ -11,6 +11,10 @@
 - Cached list status relies on portable file metadata fingerprints; destructive
   addon operations always bypass it and recalculate SHA-512
 - No native Windows support
+- Graphical shortcut creation is currently Linux-only; macOS users launch the
+  terminal CLI directly
+- Custom terminal executables must support direct, `--`, or `-e` program
+  invocation
 - Human-oriented output only; no JSON
 - Shell-level integration and interactive delegation tests; no exhaustive
   per-module unit suite

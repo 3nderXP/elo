@@ -9,8 +9,8 @@
 - `curl` required for remote installation, updates, and provider downloads
 - Gum v0.17.0 is copied or installed into Elo's private user-space tools
   directory and powers the no-argument interactive interface
-- On Linux, Gum also powers first-install terminal selection for the graphical
-  shortcut when a controlling terminal is available
+- On Linux and macOS, Gum also powers first-install terminal selection for the
+  graphical shortcut when a controlling terminal is available
 - Gum changes start from the official raw command reference at
   https://raw.githubusercontent.com/charmbracelet/gum/refs/heads/main/README.md
   and MUST be checked against `gum <command> --help` for the pinned v0.17.0
@@ -26,6 +26,11 @@ Tilix, WezTerm, Alacritty, foot, QTerminal, LXTerminal, and XTerm. A custom
 executable can use direct, `--`, or `-e` program invocation. Warp uses its
 official launch-configuration URI because it does not accept an arbitrary
 program through its normal application executable.
+
+On macOS, the installer writes an `Elo.app` bundle under `~/Applications`.
+The bundle uses Apple Terminal by default and contains an installer ownership
+marker, executable wrapper, property list, and branded icon. The application
+directory remains configurable through `ELO_APPLICATIONS_DIR`.
 
 An installation manifest without shortcut fields is migrated through the
 interactive setup. Interactive reinstalls and updates present the choice

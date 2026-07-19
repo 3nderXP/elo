@@ -29,11 +29,11 @@ this file as data. The update command delegates
 staged download, validation, and atomic activation to the target release's
 installer.
 
-On Linux, the installer owns terminal detection and Gum-powered shortcut
-setup. The launcher translates the stored preference into terminal-specific
-arguments; CLI runtime code has no terminal-emulator dependency. Desktop and
-Warp launch-configuration files carry explicit Elo ownership markers and are
-removed only while those markers remain intact.
+On Linux and macOS, the installer owns terminal detection and Gum-powered
+shortcut setup. The launcher translates the stored preference into terminal-specific
+arguments; CLI runtime code has no terminal-emulator dependency. Desktop files,
+macOS application bundles, and Warp launch-configuration files carry explicit
+Elo ownership markers and are removed only while those markers remain intact.
 
 Provider modules implement `search`, paginated `search_page`, `project_type`,
 `resolve`, `get_dependencies`, and `download` functions. Paginated search

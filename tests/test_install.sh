@@ -56,6 +56,11 @@ cat >"$FAKE_BIN/xdg-open" <<'EOF'
 printf '%s\n' "$@" >"$OPEN_LOG"
 EOF
 chmod +x "$FAKE_BIN/warp-terminal" "$FAKE_BIN/xdg-open"
+cat >"$FAKE_BIN/open" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$OPEN_LOG"
+EOF
+chmod +x "$FAKE_BIN/open"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -157,6 +162,43 @@ grep -Fx 'warp://launch/Elo%20CLI' "$OPEN_LOG" >/dev/null ||
   --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" --terminal kitty >/dev/null
 [[ -f "$SHORTCUT" ]] || fail "terminal override should recreate the shortcut"
 [[ ! -e "$WARP_CONFIG" ]] || fail "changing terminals should remove Elo's Warp configuration"
+
+MAC_INSTALL_DIR="$TEST_ROOT/mac install root"
+MAC_BIN_DIR="$TEST_ROOT/mac bin"
+MAC_APPLICATIONS_DIR="$TEST_ROOT/mac applications"
+MAC_SHORTCUT="$MAC_APPLICATIONS_DIR/Elo.app"
+cat >"$FAKE_BIN/uname" <<'EOF'
+#!/usr/bin/env bash
+printf 'Darwin\n'
+EOF
+chmod +x "$FAKE_BIN/uname"
+ELO_APPLICATIONS_DIR="$MAC_APPLICATIONS_DIR" "$PROJECT_DIR/install.sh" \
+  --source "$PROJECT_DIR" --install-dir "$MAC_INSTALL_DIR" \
+  --bin-dir "$MAC_BIN_DIR" >/dev/null
+[[ -d "$MAC_SHORTCUT" ]] || fail "macOS installation should create Elo.app"
+[[ -x "$MAC_SHORTCUT/Contents/MacOS/Elo" ]] ||
+  fail "macOS application bundle should contain an executable"
+[[ -f "$MAC_SHORTCUT/Contents/Info.plist" ]] ||
+  fail "macOS application bundle should contain Info.plist"
+grep -Fx 'Managed by the Elo installer.' \
+  "$MAC_SHORTCUT/Contents/Resources/.elo-managed" >/dev/null ||
+  fail "macOS application bundle should be marked as installer-managed"
+grep -F '<string>io.github.3nderxp.elo</string>' \
+  "$MAC_SHORTCUT/Contents/Info.plist" >/dev/null ||
+  fail "macOS application bundle should define Elo's bundle identifier"
+"$MAC_SHORTCUT/Contents/MacOS/Elo"
+sed -n '1p' "$OPEN_LOG" | grep -Fx -- '-a' >/dev/null ||
+  fail "macOS launcher should use open's application option"
+sed -n '2p' "$OPEN_LOG" | grep -Fx 'Terminal' >/dev/null ||
+  fail "macOS launcher should select Apple Terminal"
+sed -n '3p' "$OPEN_LOG" | grep -Fx "$MAC_INSTALL_DIR/current/elo.sh" >/dev/null ||
+  fail "macOS launcher should open Elo's active command"
+ELO_APPLICATIONS_DIR="$MAC_APPLICATIONS_DIR" "$PROJECT_DIR/install.sh" \
+  --source "$PROJECT_DIR" --install-dir "$MAC_INSTALL_DIR" \
+  --bin-dir "$MAC_BIN_DIR" --no-shortcut >/dev/null
+[[ ! -e "$MAC_SHORTCUT" ]] ||
+  fail "--no-shortcut should remove the installer-managed macOS application"
+rm "$FAKE_BIN/uname"
 
 printf 'ok 1 - local installation creates and updates a working command\n'
 

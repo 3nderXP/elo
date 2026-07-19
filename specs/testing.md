@@ -5,8 +5,8 @@ symlinks, active-instance removal, paths with spaces, help, and confirmations.
 `tests/test_install.sh` covers isolated installation, latest-stable updates,
 exact pre-release updates, and two-release retention with a local fake GitHub
 transport. It also verifies private Gum installation, legacy global-Gum
-preservation, graphical-shortcut creation, detected-terminal persistence,
-launcher delegation, shortcut cleanup, and self-uninstallation.
+preservation, Linux and macOS graphical-shortcut creation, detected-terminal
+persistence, launcher delegation, shortcut cleanup, and self-uninstallation.
 
 `tests/test_provider.sh` covers provider search, dependency planning and
 installation, registry scanning, adoption, and safe addon removal using an

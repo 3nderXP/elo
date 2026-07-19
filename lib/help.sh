@@ -23,7 +23,7 @@ Usage:
 
 Commands:
   init        Configure the .minecraft directory to manage
-  instances   Create, import, activate, list, reset, or remove instances
+  instances   Create, import, change, activate, list, reset, or remove instances
   addons      Search, install, list, adopt, or remove addons
   status      Diagnose the current managed state
   update      Install a stable or selected Elo release
@@ -64,6 +64,7 @@ elo_help_instances() {
   case "$action" in
     create) elo_help_instances_create ;;
     import) elo_help_instances_import ;;
+    version) elo_help_instances_version ;;
     activate) elo_help_instances_activate ;;
     reset) elo_help_instances_reset ;;
     list) elo_help_instances_list ;;
@@ -75,6 +76,7 @@ Usage:
 Commands:
   create     Create an empty instance
   import     Install a local Modrinth .mrpack as a new instance
+  version    Change Minecraft version and optionally migrate addons
   activate   Activate or switch to an instance
   reset      Stop management and restore original directories
   list       List existing instances
@@ -119,6 +121,23 @@ Usage:
 Activate an instance or switch from the current one. Backup mode preserves
 original directories and is the default. Replace mode permanently removes
 real destination directories after confirmation.
+EOF
+}
+
+elo_help_instances_version() {
+  cat <<'EOF'
+Usage:
+  elo instances version <name> <version> [--migrate] [--remove-incompatible] [--dry-run] [--yes]
+
+Analyze every managed addon against a new Minecraft version before changing
+the instance. The report marks addons as keep, update, restore, unavailable,
+modified, collision, unmanaged, blocked, or external. --dry-run changes nothing. --migrate
+downloads and verifies compatible replacements before changing files.
+--remove-incompatible moves verified unavailable addons into the migration
+backup; modified files and collisions are always kept for manual review.
+
+Without --migrate, addon files stay unchanged after a compatibility warning.
+Changing versions can break startup, worlds, configs, and modpack guarantees.
 EOF
 }
 

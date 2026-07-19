@@ -19,6 +19,9 @@
 - Gum v0.17.0 provides `spin`, but no native percentage progress-bar command;
   modpack downloads use Elo's ANSI progress bar on TTYs and `info:` progress
   lines when output is not a TTY
+- Version migration reports use `gum pager` for large addon sets. Selective
+  incompatible-addon removal uses `gum filter --no-limit`, providing a
+  searchable multi-select checklist without rendering every choice at once.
 - Instance management includes `saves`; each instance has isolated worlds and
   activation backs up the original Minecraft `saves` directory.
 - `tar` plus `sha256sum` or `shasum` is required for verified Gum installation

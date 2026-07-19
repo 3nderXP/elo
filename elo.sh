@@ -49,6 +49,7 @@ elo_dispatch_instances() {
   case "$action" in
     create) elo_cmd_new "$@" ;;
     import) elo_cmd_import_mrpack "$@" ;;
+    version) elo_cmd_instance_version "$@" ;;
     activate) elo_cmd_link "$@" ;;
     reset) elo_cmd_reset "$@" ;;
     list) elo_cmd_list "$@" ;;

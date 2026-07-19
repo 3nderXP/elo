@@ -85,6 +85,8 @@ elo_test_gum() {
       cat -- "$file"
       ;;
     file) elo_test_response ;;
+    filter) elo_test_response ;;
+    pager) cat >/dev/null ;;
   esac
 }
 
@@ -149,7 +151,11 @@ elo_search_page() {
     elo_test_record search "$provider" "$query" "$type" "$instance" "$limit" "$offset"
   fi
   printf '%s\n' "$offset" >>"$TEST_ROOT/search-offsets"
-  printf '60\nsodium01\tsodium\tmod\tSodium\t42\n'
+  if [[ "$query" == "no-results" ]]; then
+    printf '0\n'
+    return
+  fi
+  printf '60\nsodium01\ta-modrinth-slug-longer-than-twenty-characters\tmod\tSodium\t42\n'
 }
 elo_cmd_install() { elo_test_record install "$@"; }
 elo_cmd_adopt() { elo_test_record adopt "$@"; }
@@ -188,6 +194,20 @@ elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
 elo_ui_search >/dev/null
 assert_call $'search\nmodrinth\nsodium\nmod\nalpha\n25\n0'
 assert_contains "$TEST_ROOT/search-offsets" 0
+assert_contains "$ELO_UI_CACHE_DIR/render-table.tsv" "a-modrinth-slug-longer-than-twenty-characters"
+
+elo_ui_search_page_loader 0 25 modrinth no-results mod alpha \
+  >"$ELO_UI_CACHE_DIR/empty-search.tsv"
+elo_ui_render_table "$ELO_UI_CACHE_DIR/empty-search.tsv" 1 tsv >/dev/null
+assert_contains "$ELO_UI_CACHE_DIR/render-table.tsv" $'-\t-\t-\tNo addons found.\t-'
+
+printf 'unavailable\tmodrinth:vulkanmod\tVulkanMod\t1.0\t-\tmod\tvulkan.jar\t-\t{}\n' \
+  >"$ELO_UI_CACHE_DIR/migration-plan.tsv"
+elo_test_queue "modrinth:vulkanmod | unavailable | VulkanMod"
+selected="$(elo_ui_migration_select_removals "$ELO_UI_CACHE_DIR/migration-plan.tsv")"
+[[ "$selected" == "modrinth:vulkanmod" ]] || fail "migration checklist should return selected addon keys"
+assert_contains "$GUM_CALLS" "filter --no-limit --height 20 --show-help"
+assert_contains "$GUM_CALLS" "type to filter"
 
 : >"$TEST_ROOT/search-offsets"
 elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Last Back

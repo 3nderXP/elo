@@ -4,6 +4,7 @@
 elo init --minecraft-path <path>
 elo instances create <name> [--version <version>] [--loader <loader>]
 elo instances import <name> <file.mrpack> [--yes]
+elo instances version <name> <version> [--migrate] [--remove-incompatible] [--dry-run] [--yes]
 elo instances activate <name> [--mode backup|replace] [--yes]
 elo instances reset [--yes]
 elo instances list
@@ -101,6 +102,13 @@ regular registry files; dependencies remain for explicit cleanup.
 provider modules, and `set` persists a validated preference after confirmation.
 Search, install, and identifier-based removal use it unless their explicit
 `--provider` option overrides it. The initial preference is `modrinth`.
+
+`instances version` classifies the change as an upgrade, downgrade, or opaque
+version change and analyzes every managed addon before confirmation. Migration
+downloads and verifies all compatible replacements before publishing changes,
+keeps modified or colliding files, and stores replaced files plus registry and
+instance metadata in a timestamped `.elo-migrations` backup. Without
+`--migrate`, only instance metadata changes and all addon files remain.
 
 Install reuses an unregistered regular file only when its SHA-512 matches the
 provider metadata, emits a warning, and records it as managed. A different or

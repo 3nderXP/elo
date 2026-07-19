@@ -123,6 +123,12 @@ elo_ui_render_table() {
   local source="$1" header_count="$2" widths="$3" table_file tab
   table_file="$ELO_UI_CACHE_DIR/render-table.tsv"
   tab=$'\t'
+  if [[ "$widths" == "tsv" ]]; then
+    awk -v header_count="$header_count" 'NR > 1 && NR <= header_count { next } { print }' \
+      "$source" >"$table_file"
+    elo_ui_render_tsv_table "$table_file"
+    return
+  fi
   awk -v header_count="$header_count" -v widths="$widths" '
     BEGIN { count = split(widths, width, ",") }
     NR > 1 && NR <= header_count { next }
@@ -429,12 +435,12 @@ elo_ui_search_page_loader() {
     printf '%s\n' "$total" >"$total_temp"
     mv -- "$total_temp" "$ELO_UI_CACHE_DIR/search-total"
   fi
-  printf '%-10s %-20s %-12s %-36s %s\n' ID SLUG TYPE NAME DOWNLOADS
+  printf 'ID\tSLUG\tTYPE\tNAME\tDOWNLOADS\n'
   if [[ -z "$results" ]]; then
-    elo_info "No addons found."
+    printf '%s\t%s\t%s\t%s\t%s\n' - - - "No addons found." -
   else
     printf '%s\n' "$results" | while IFS=$'\t' read -r id slug result_type name downloads; do
-      printf '%-10s %-20s %-12s %-36s %s\n' \
+      printf '%s\t%s\t%s\t%s\t%s\n' \
         "$id" "$slug" "$result_type" "$name" "$downloads"
     done
   fi
@@ -512,6 +518,94 @@ elo_ui_new() {
   version="$(elo_ui_input "Minecraft version" "1.21" "unknown")" || return 0
   loader="$(elo_ui_choose_header "Loader" fabric neoforge forge quilt vanilla)" || return 0
   elo_cmd_new "$name" --version "$version" --loader "$loader"
+}
+
+elo_ui_migration_report() {
+  local instance="$1" current="$2" target="$3" plan="$4" report
+  report="$ELO_UI_CACHE_DIR/migration-report.txt"
+  {
+    printf 'Instance: %s\nMinecraft: %s -> %s (%s)\n\n' \
+      "$instance" "$current" "$target" "$(elo_version_relation "$current" "$target")"
+    elo_migration_plan_print "$plan"
+    printf '\nStates:\n'
+    printf '  keep        current file already supports target\n'
+    printf '  update      compatible replacement available\n'
+    printf '  restore     managed file is missing; replacement available\n'
+    printf '  unavailable no compatible release found\n'
+    printf '  modified    file differs from registry; manual review required\n'
+    printf '  collision   replacement filename already exists\n'
+    printf '  unmanaged   provider/local file cannot be resolved\n'
+    printf '  blocked     required dependency cannot migrate safely\n'
+    printf '  external    unregistered file requires manual review\n'
+  } >"$report"
+  "$ELO_GUM_COMMAND" pager --no-soft-wrap --show-line-numbers <"$report"
+}
+
+elo_ui_migration_select_removals() {
+  local plan="$1" options selected line key remove_keys=""
+  options="$ELO_UI_CACHE_DIR/migration-incompatible.txt"
+  : >"$options"
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    [[ "$state" == unavailable || "$state" == unmanaged || "$state" == blocked ]] || continue
+    printf '%s | %s | %s\n' "$key" "$state" "$name" >>"$options"
+  done <"$plan"
+  if [[ ! -s "$options" ]]; then
+    elo_info "No removable incompatible addons found."
+    return 0
+  fi
+  selected="$("$ELO_GUM_COMMAND" filter --no-limit --height 20 --show-help \
+    --header "Select incompatible addons to REMOVE (Tab toggle · type to filter · Enter confirm)" \
+    --placeholder "Filter by addon, source, or state" <"$options" || true)"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -n "$line" ]] || continue
+    key="${line%% | *}"
+    remove_keys="${remove_keys}${remove_keys:+,}$key"
+  done <<<"$selected"
+  printf '%s\n' "$remove_keys"
+}
+
+elo_ui_change_version() {
+  local instance target current relation plan errors status choice remove_keys="" count=0
+  instance="$(elo_ui_select_instance "Change version for which instance?")" || return 0
+  current="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
+  target="$(elo_ui_input "New Minecraft version" "26.1.2" "$current")" || return 0
+  [[ -n "$target" && "$target" != "$current" ]] || return 0
+  relation="$(elo_version_relation "$current" "$target")"
+  elo_warn "Minecraft version $relation: $current -> $target. Incompatible addons can break startup, configs, or worlds."
+
+  elo_ui_cache_reset || return
+  plan="$ELO_UI_CACHE_DIR/migration-plan.tsv"
+  errors="$ELO_UI_CACHE_DIR/migration-errors"
+  status="$ELO_UI_CACHE_DIR/migration-status"
+  if ! elo_ui_run_with_spinner "Analyzing addon compatibility..." "$plan" "$errors" "$status" \
+    elo_migration_plan_create "$instance" "$target"; then
+    return 1
+  fi
+  elo_ui_migration_report "$instance" "$current" "$target" "$plan" || return 0
+
+  choice="$(elo_ui_choose_header "Version change action" \
+    "Migrate compatible addons; keep incompatible" \
+    "Migrate compatible addons; choose incompatible removals" \
+    "Change version only; keep every addon unchanged" "Cancel")" || return 0
+  case "$choice" in
+    "Change version only; keep every addon unchanged")
+      elo_ui_confirm "Change to $target without migrating addons?" || return 0
+      elo_kv_set "$(elo_instance_dir "$instance")/instance.conf" MINECRAFT_VERSION "$target"
+      elo_warn "Version changed; addon files remain unchanged."
+      ;;
+    "Migrate compatible addons; choose incompatible removals")
+      remove_keys="$(elo_ui_migration_select_removals "$plan")"
+      if [[ -n "$remove_keys" ]]; then
+        count="$(printf '%s' "$remove_keys" | awk -F, '{ print NF }')"
+      fi
+      elo_ui_confirm "Migrate compatible addons, remove $count selected incompatible addons, and change to $target?" || return 0
+      elo_migration_apply "$instance" "$target" "$plan" "$remove_keys"
+      ;;
+    "Migrate compatible addons; keep incompatible")
+      elo_ui_confirm "Migrate compatible addons, keep incompatible addons, and change to $target?" || return 0
+      elo_migration_apply "$instance" "$target" "$plan" ""
+      ;;
+  esac
 }
 
 elo_ui_import_mrpack() {
@@ -592,7 +686,7 @@ elo_ui_search() {
     return 1
   }
   elo_ui_lazy_paginate "Search results" "$total" "$page_size" \
-    1 "10,20,12,36,0" elo_ui_search_page_loader "$provider" "$query" "$type" "$instance"
+    1 "tsv" elo_ui_search_page_loader "$provider" "$query" "$type" "$instance"
 }
 
 elo_ui_install() {
@@ -787,11 +881,13 @@ elo_ui_help() {
 elo_ui_instances_menu() {
   local action
   action="$(elo_ui_choose_header "Instances" \
-    "Create instance" "Import Modrinth modpack" "Activate or switch instance" "List instances" \
+    "Create instance" "Import Modrinth modpack" "Change instance version" \
+    "Activate or switch instance" "List instances" \
     "Reset managed links" "Remove instance" "Back")" || return 0
   case "$action" in
     "Create instance") elo_ui_new ;;
     "Import Modrinth modpack") elo_ui_import_mrpack ;;
+    "Change instance version") elo_ui_change_version ;;
     "Activate or switch instance") elo_ui_activate ;;
     "List instances") elo_ui_paginated_command "Instances" 1 "24,12,12,0" elo_cmd_list ;;
     "Reset managed links") elo_cmd_reset ;;

@@ -281,6 +281,7 @@ restores the original directories.
 | --- | --- |
 | `elo instances create <name>` | Create an instance |
 | `elo instances import <name> <file.mrpack>` | Install a local Modrinth modpack |
+| `elo instances version <name> <version>` | Change version and analyze/migrate addons |
 | `elo instances activate <name>` | Activate or switch to an instance |
 | `elo instances list` | List instances, versions, loaders, and active state |
 | `elo instances reset` | Stop management and restore original directories |
@@ -293,6 +294,18 @@ elo instances create neoforge-1_21 \
   --version 1.21.1 \
   --loader neoforge
 ```
+
+Preview or perform a version migration:
+
+```bash
+elo instances version amazing-vanilla 26.1.2 --dry-run
+elo instances version amazing-vanilla 26.1.2 --migrate
+```
+
+Elo classifies compatible, updateable, unavailable, modified, colliding, and
+external addons before confirmation. Migrated files are downloaded and
+verified first; replaced files and metadata remain in a timestamped recovery
+backup under the instance's `.elo-migrations` directory.
 
 Activation uses safe backup mode by default:
 

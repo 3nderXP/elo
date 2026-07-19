@@ -34,6 +34,7 @@ elo_launcher_main() {
     elo_launcher_die "The configured terminal is no longer available. Reinstall Elo to choose another one."
 
   case "$mode" in
+    mac-terminal) exec "$terminal" -a Terminal "$command_path" ;;
     warp)
       exec "$terminal" 'warp://launch/Elo%20CLI'
       ;;

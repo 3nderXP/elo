@@ -114,13 +114,17 @@ elo_cmd_uninstall() {
     esac
   fi
 
-  if [[ -n "$shortcut_path" && -f "$shortcut_path" ]] &&
+  if [[ -n "$shortcut_path" && -f "$shortcut_path" && ! -L "$shortcut_path" ]] &&
     grep -Fx 'X-Elo-Managed=true' "$shortcut_path" >/dev/null 2>&1; then
     shortcut_directory="$(dirname "$shortcut_path")"
     rm -- "$shortcut_path"
     if command -v update-desktop-database >/dev/null 2>&1; then
       update-desktop-database "$shortcut_directory" >/dev/null 2>&1 || true
     fi
+  elif [[ -n "$shortcut_path" && -d "$shortcut_path" && ! -L "$shortcut_path" ]] &&
+    grep -Fx 'Managed by the Elo installer.' \
+      "$shortcut_path/Contents/Resources/.elo-managed" >/dev/null 2>&1; then
+    rm -rf -- "$shortcut_path"
   fi
   if [[ -n "$warp_config_path" && -f "$warp_config_path" ]] &&
     grep -Fx '# Managed by the Elo installer.' "$warp_config_path" >/dev/null 2>&1; then

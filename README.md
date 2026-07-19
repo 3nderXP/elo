@@ -84,18 +84,21 @@ The installer:
 - installs releases under `~/.local/share/elo`;
 - creates the `elo` command under `~/.local/bin`;
 - provisions a private copy of Gum for the interactive interface;
-- uses Gum to choose a detected terminal and creates a Linux application shortcut;
+- uses Gum to choose a detected terminal and creates a Linux or macOS application shortcut;
 - validates downloaded scripts and the Gum archive;
 - never uses `sudo` or changes the system package manager;
 - does not touch `.minecraft` or create runtime data.
 
-On the first interactive Linux installation, choose one of the detected
+On the first interactive Linux or macOS installation, choose one of the detected
 terminals, provide another terminal executable, or skip the shortcut. The
 choice affects only the application-menu shortcut; `elo` remains usable from
 every terminal. For unattended installation, use `--terminal <command>` or
 `--no-shortcut`. Interactive reinstalls and updates show the terminal choice
 again; unattended runs preserve the existing choice. Use
 `--configure-shortcut` to request setup explicitly.
+
+On Linux, the shortcut is installed in the desktop application directory. On
+macOS, Elo creates `~/Applications/Elo.app` and uses Apple Terminal by default.
 
 If the installer warns that `~/.local/bin` is not in `PATH`, add this line to
 your shell configuration (`~/.bashrc`, `~/.zshrc`, or equivalent):

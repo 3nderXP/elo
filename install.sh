@@ -20,7 +20,7 @@ ELO_SHORTCUT_ENABLED=""
 ELO_SHORTCUT_EXPLICIT=0
 ELO_SHORTCUT_CONFIGURED=0
 ELO_SHORTCUT_FORCE_SETUP=0
-ELO_APPLICATIONS_DIR="${ELO_APPLICATIONS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/applications}"
+ELO_APPLICATIONS_DIR="${ELO_APPLICATIONS_DIR:-}"
 ELO_SHORTCUT_PATH=""
 ELO_PREVIOUS_SHORTCUT_PATH=""
 ELO_WARP_CONFIG_PATH=""
@@ -298,6 +298,10 @@ install_terminal_metadata() {
   [[ -n "$resolved" && -x "$resolved" && ! -d "$resolved" ]] || return 1
   basename="$(basename "$resolved")"
   case "$basename" in
+    open)
+      [[ "$(uname -s)" == "Darwin" ]] || return 1
+      id=apple-terminal; mode=mac-terminal; label="Apple Terminal"
+      ;;
     warp-terminal) id=warp; mode=warp; label=Warp ;;
     kitty) id=kitty; mode=direct; label=Kitty ;;
     gnome-terminal) id=gnome-terminal; mode=double-dash; label="GNOME Terminal" ;;
@@ -324,10 +328,11 @@ install_detect_terminals() {
     kitty) preferred=kitty ;;
     WezTerm) preferred=wezterm ;;
   esac
+  [[ "$(uname -s)" == "Darwin" ]] && preferred=open
   [[ -n "${GNOME_TERMINAL_SCREEN:-}" ]] && preferred=gnome-terminal
   [[ -n "${KONSOLE_VERSION:-}" ]] && preferred=konsole
 
-  for candidate in "$preferred" warp-terminal kitty gnome-terminal kgx konsole \
+  for candidate in "$preferred" open warp-terminal kitty gnome-terminal kgx konsole \
     xfce4-terminal mate-terminal tilix wezterm alacritty foot footclient \
     qterminal lxterminal xterm; do
     [[ -n "$candidate" ]] || continue
@@ -404,9 +409,9 @@ install_setup_shortcut() {
     ELO_TERMINAL_COMMAND=""
     ELO_TERMINAL_MODE=""
   fi
-  if [[ "$(uname -s)" != "Linux" ]]; then
+  if [[ "$(uname -s)" != "Linux" && "$(uname -s)" != "Darwin" ]]; then
     ELO_SHORTCUT_ENABLED=0
-    ((ELO_SHORTCUT_EXPLICIT == 0)) || install_info "Graphical shortcuts are currently supported on Linux only."
+    ((ELO_SHORTCUT_EXPLICIT == 0)) || install_info "Graphical shortcuts are supported on Linux and macOS only."
     return
   fi
   if [[ -n "$ELO_TERMINAL" ]]; then
@@ -461,7 +466,10 @@ install_prepare_shortcut_paths() {
   ELO_SHORTCUT_PATH=""
   ELO_WARP_CONFIG_PATH=""
   [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
-  ELO_SHORTCUT_PATH="$ELO_APPLICATIONS_DIR/elo.desktop"
+  case "$(uname -s)" in
+    Darwin) ELO_SHORTCUT_PATH="${ELO_APPLICATIONS_DIR:-$HOME/Applications}/Elo.app" ;;
+    *) ELO_SHORTCUT_PATH="${ELO_APPLICATIONS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/applications}/elo.desktop" ;;
+  esac
   if [[ "$ELO_TERMINAL_MODE" == "warp" ]]; then
     ELO_WARP_CONFIG_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/warp-terminal/launch_configurations/elo-cli.yaml"
   fi
@@ -469,13 +477,36 @@ install_prepare_shortcut_paths() {
 
 install_validate_shortcut_targets() {
   [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
-  if [[ -e "$ELO_SHORTCUT_PATH" ]] &&
-    ! grep -Fx 'X-Elo-Managed=true' "$ELO_SHORTCUT_PATH" >/dev/null 2>&1; then
+  if [[ -e "$ELO_SHORTCUT_PATH" || -L "$ELO_SHORTCUT_PATH" ]] &&
+    ! install_shortcut_is_managed "$ELO_SHORTCUT_PATH"; then
     install_die "Shortcut path exists and is not managed by Elo: $ELO_SHORTCUT_PATH"
   fi
   if [[ -n "$ELO_WARP_CONFIG_PATH" && -e "$ELO_WARP_CONFIG_PATH" ]] &&
     ! grep -Fx '# Managed by the Elo installer.' "$ELO_WARP_CONFIG_PATH" >/dev/null 2>&1; then
     install_die "Warp launch configuration exists and is not managed by Elo: $ELO_WARP_CONFIG_PATH"
+  fi
+}
+
+install_shortcut_is_managed() {
+  local path="$1"
+  if [[ -f "$path" && ! -L "$path" ]]; then
+    grep -Fx 'X-Elo-Managed=true' "$path" >/dev/null 2>&1
+  elif [[ -d "$path" && ! -L "$path" ]]; then
+    grep -Fx 'Managed by the Elo installer.' \
+      "$path/Contents/Resources/.elo-managed" >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
+
+install_remove_managed_shortcut() {
+  local path="$1"
+  install_shortcut_is_managed "$path" || return 0
+  if [[ -d "$path" ]]; then
+    rm -rf -- "$path"
+  else
+    rm -- "$path"
+    install_refresh_desktop_database "$(dirname "$path")"
   fi
 }
 
@@ -488,10 +519,8 @@ install_refresh_desktop_database() {
 
 install_remove_previous_shortcut_files() {
   if [[ -n "$ELO_PREVIOUS_SHORTCUT_PATH" && "$ELO_PREVIOUS_SHORTCUT_PATH" != "$ELO_SHORTCUT_PATH" &&
-    -f "$ELO_PREVIOUS_SHORTCUT_PATH" ]] &&
-    grep -Fx 'X-Elo-Managed=true' "$ELO_PREVIOUS_SHORTCUT_PATH" >/dev/null 2>&1; then
-    rm -- "$ELO_PREVIOUS_SHORTCUT_PATH"
-    install_refresh_desktop_database "$(dirname "$ELO_PREVIOUS_SHORTCUT_PATH")"
+    ( -e "$ELO_PREVIOUS_SHORTCUT_PATH" || -L "$ELO_PREVIOUS_SHORTCUT_PATH" ) ]]; then
+    install_remove_managed_shortcut "$ELO_PREVIOUS_SHORTCUT_PATH"
   fi
   if [[ -n "$ELO_PREVIOUS_WARP_CONFIG_PATH" && "$ELO_PREVIOUS_WARP_CONFIG_PATH" != "$ELO_WARP_CONFIG_PATH" &&
     -f "$ELO_PREVIOUS_WARP_CONFIG_PATH" ]] &&
@@ -509,10 +538,81 @@ install_desktop_string() {
   printf '%s' "$1" | sed 's/\\/\\\\/g'
 }
 
+install_shell_single_quote() {
+  printf '%s' "$1" | sed "s/'/'\\\\''/g"
+}
+
+install_create_macos_icon() {
+  local resources="$1" source="$2" iconset="$resources/EloIcon.iconset"
+  local size scaled
+
+  if command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1; then
+    mkdir -p "$iconset"
+    for size in 16 32 128 256 512; do
+      sips -z "$size" "$size" "$source" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+      scaled=$((size * 2))
+      sips -z "$scaled" "$scaled" "$source" \
+        --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+    done
+    if iconutil -c icns "$iconset" -o "$resources/EloIcon.icns" >/dev/null 2>&1; then
+      rm -rf -- "$iconset"
+      printf '%s\n' 'EloIcon.icns'
+      return
+    fi
+    rm -rf -- "$iconset"
+  fi
+  cp "$source" "$resources/EloIcon.png"
+  printf '%s\n' 'EloIcon.png'
+}
+
+install_create_macos_shortcut() {
+  local launcher icon resources executable temporary quoted_launcher icon_name
+  launcher="$ELO_INSTALL_DIR/current/lib/launcher.sh"
+  icon="$ELO_INSTALL_DIR/current/assets/branding/shortcut-icon.png"
+  temporary="$(dirname "$ELO_SHORTCUT_PATH")/.Elo.app.tmp.$$"
+  resources="$temporary/Contents/Resources"
+  executable="$temporary/Contents/MacOS/Elo"
+  quoted_launcher="$(install_shell_single_quote "$launcher")"
+
+  mkdir -p "$resources" "$(dirname "$executable")"
+  icon_name="$(install_create_macos_icon "$resources" "$icon")"
+  {
+    printf '%s\n' '#!/usr/bin/env bash'
+    printf "exec '%s'\n" "$quoted_launcher"
+  } >"$executable"
+  chmod 0755 "$executable"
+  printf '%s\n' 'Managed by the Elo installer.' >"$resources/.elo-managed"
+  {
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+    printf '%s\n' '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+    printf '%s\n' '<plist version="1.0">' '<dict>'
+    printf '%s\n' '  <key>CFBundleDisplayName</key>' '  <string>Elo</string>'
+    printf '%s\n' '  <key>CFBundleExecutable</key>' '  <string>Elo</string>'
+    printf '%s\n' '  <key>CFBundleIdentifier</key>' '  <string>io.github.3nderxp.elo</string>'
+    printf '%s\n' '  <key>CFBundleName</key>' '  <string>Elo</string>'
+    printf '%s\n' '  <key>CFBundlePackageType</key>' '  <string>APPL</string>'
+    printf '%s\n' '  <key>CFBundleVersion</key>' '  <string>1</string>'
+    printf '%s\n' '  <key>CFBundleShortVersionString</key>' '  <string>1.0</string>'
+    printf '%s\n' '  <key>CFBundleIconFile</key>' "  <string>$icon_name</string>"
+    printf '%s\n' '  <key>LSUIElement</key>' '  <true/>'
+    printf '%s\n' '</dict>' '</plist>'
+  } >"$temporary/Contents/Info.plist"
+
+  mkdir -p "$(dirname "$ELO_SHORTCUT_PATH")"
+  install_remove_managed_shortcut "$ELO_SHORTCUT_PATH"
+  mv "$temporary" "$ELO_SHORTCUT_PATH"
+}
+
 install_create_shortcut() {
   local launcher icon temporary quoted_launcher quoted_icon yaml_command yaml_home
   install_remove_previous_shortcut_files
   [[ "$ELO_SHORTCUT_ENABLED" == "1" ]] || return 0
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    install_create_macos_shortcut
+    install_info "Application shortcut created at $ELO_SHORTCUT_PATH"
+    return
+  fi
 
   launcher="$ELO_INSTALL_DIR/current/lib/launcher.sh"
   icon="$ELO_INSTALL_DIR/current/assets/branding/shortcut-icon.png"

@@ -4,6 +4,14 @@
   <h1>Elo</h1>
 
   <p>
+    <a href="https://github.com/3nderXP/elo/stargazers"><img src="https://img.shields.io/github/stars/3nderXP/elo?style=flat-square&logo=github&label=stars" alt="GitHub stars"></a>
+    <a href="https://github.com/3nderXP/elo/releases"><img src="https://img.shields.io/github/v/release/3nderXP/elo?style=flat-square&logo=github&label=release" alt="Latest release"></a>
+    <a href="https://github.com/3nderXP/elo/releases"><img src="https://img.shields.io/github/downloads/3nderXP/elo/total?style=flat-square&logo=github&label=downloads" alt="Release downloads"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/3nderXP/elo?style=flat-square&label=license" alt="GPL-3.0 license"></a>
+    <a href="https://github.com/3nderXP"><img src="https://img.shields.io/badge/author-3nderXP-181717?style=flat-square&logo=github" alt="Author 3nderXP"></a>
+  </p>
+
+  <p>
     A terminal application for organizing Minecraft mods, resource packs,
     shaders, and configuration into separate instances.
   </p>
@@ -76,7 +84,7 @@ macOS:  ~/Library/Application Support/minecraft
 Run the official installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/3nderXP/elo/main/install.sh | bash
+curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash
 ```
 
 The installer:

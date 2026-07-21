@@ -19,6 +19,9 @@ elo addons remove <instance> --file <mods|resourcepacks|shaderpacks>/<filename> 
 elo status
 elo update [--version <version>] [--yes]
 elo uninstall [--purge] [--yes]
+elo version
+elo --version
+elo -v
 elo help [command] [subcommand]
 ```
 
@@ -83,6 +86,23 @@ Exit codes: `0` success/consistent, `1` operational failure/inconsistency, and
 `2` unknown command. State-changing commands require confirmation; `--yes`
 authorizes non-interactive execution. Flat instance and addon commands do not
 exist; unknown legacy forms return exit code `2` without compatibility aliases.
+
+`elo version` (aliases `--version` and `-v`) prints the installed Elo version
+and takes no options. Outside an installer-managed release it prints `unknown`.
+
+Opening the interactive interface (`elo` with no arguments) always checks for
+a newer stable release, caching the result for 24 hours. Its header renders
+the installed version (or `development` outside an installer-managed release)
+in its own small rounded-border badge above the main header box, top-left
+aligned, plus an update notice when a newer release exists. Direct CLI
+commands never perform this check implicitly.
+
+After a successful update from the interactive interface's System menu, Elo
+restarts itself in place (`exec`) using the original invocation, so the new
+release's code is active immediately without leaving the running session. A
+cancelled or failed update never restarts the process. Direct CLI
+`elo update` never restarts the invoking shell; the next command already runs
+the new release.
 
 `elo update` resolves GitHub's latest stable release by default. `--version`
 selects an exact SemVer release, including pre-releases; a missing leading `v`

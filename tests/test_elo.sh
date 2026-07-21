@@ -179,6 +179,26 @@ test_help_is_explicit() {
   pass "help distinguishes fields and explains effects"
 }
 
+test_version_command() {
+  local output
+
+  output="$("$ELO" version)"
+  assert_contains "$output" "Elo "
+
+  [[ "$output" == "$("$ELO" --version)" ]] || fail "--version should match version"
+  [[ "$output" == "$("$ELO" -v)" ]] || fail "-v should match version"
+
+  output="$("$ELO" help version)"
+  assert_contains "$output" "elo version"
+  assert_contains "$output" "elo -v"
+
+  if "$ELO" version extra-arg >/dev/null 2>&1; then
+    fail "version should reject unexpected arguments"
+  fi
+
+  pass "version prints the installed release with -v/--version aliases"
+}
+
 test_instance_version_change() {
   local output config
   setup_environment version-change
@@ -258,6 +278,7 @@ test_foreign_symlink_is_protected
 test_remove_requires_reset
 test_paths_with_spaces
 test_help_is_explicit
+test_version_command
 test_confirmation_is_required
 test_instance_version_change
 test_interactive_mode_requires_terminal

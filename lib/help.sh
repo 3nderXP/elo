@@ -28,6 +28,7 @@ Commands:
   status      Diagnose the current managed state
   update      Install a stable or selected Elo release
   uninstall   Uninstall Elo and optionally delete its data
+  version     Show the installed Elo version (alias: --version, -v)
   help        Show general or command-specific help
 
 Run without a command to open the Gum-powered interactive interface.
@@ -284,6 +285,17 @@ Install and activate the latest stable or an exact SemVer Elo release.
 EOF
 }
 
+elo_help_version() {
+  cat <<'EOF'
+Usage:
+  elo version
+  elo --version
+  elo -v
+
+Print the installed Elo version.
+EOF
+}
+
 elo_help_uninstall() {
   cat <<'EOF'
 Usage:
@@ -314,6 +326,7 @@ elo_help_command() {
     status) elo_help_status ;;
     update) elo_help_update ;;
     uninstall) elo_help_uninstall ;;
+    version | --version | -v) elo_help_version ;;
     help) elo_help_help ;;
     *) elo_error "No help is available for command: $command"; elo_help_general >&2; return 2 ;;
   esac

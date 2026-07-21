@@ -6,6 +6,7 @@ ELO_UI_SKY="#78A9C4"
 ELO_UI_TEXT="#F1F3EE"
 ELO_UI_MUTED="#9AA7A0"
 ELO_UI_DARK="#18211B"
+ELO_UI_ALERT="#E8B339"
 ELO_GUM_COMMAND=""
 ELO_UI_PAGE_SIZE=10
 ELO_UI_SKIP_PAUSE=0
@@ -35,7 +36,21 @@ elo_ui_require() {
 
 elo_ui_header() {
   local active="" columns="" logo_file logo="" logo_width=0 required_columns=0
+  local current_version="" version_label="development"
   [[ -f "$ELO_CONFIG_FILE" ]] && active="$(elo_active_instance)"
+  if declare -F elo_get_current_version >/dev/null 2>&1; then
+    current_version="$(elo_get_current_version)"
+    if [[ "$current_version" != "unknown" ]]; then
+      if declare -F elo_update_is_semver >/dev/null 2>&1 && elo_update_is_semver "$current_version"; then
+        version_label="v${current_version#v}"
+      else
+        version_label="$current_version"
+      fi
+    fi
+  fi
+  "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_MUTED" --border rounded \
+    --border-foreground "$ELO_UI_GRASS" --padding "0 1" \
+    "$version_label"
   logo_file="${ELO_SCRIPT_DIR:-}/assets/branding/elo.asc"
   columns="${COLUMNS:-}"
   if [[ -z "$columns" ]] && command -v tput >/dev/null 2>&1; then
@@ -63,6 +78,10 @@ elo_ui_header() {
   fi
   if [[ -n "$active" ]]; then
     "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_GRASS" "Active instance: $active"
+  fi
+  if [[ "${ELO_UPDATE_AVAILABLE:-0}" == "1" ]]; then
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ALERT" \
+      "Update available: ${ELO_LATEST_VERSION} (System > Update Elo)"
   fi
   printf '\n'
 }
@@ -609,12 +628,26 @@ elo_ui_change_version() {
 }
 
 elo_ui_import_mrpack() {
-  local pack name
-  pack="$(elo_ui_file "Select a Modrinth .mrpack file" "$HOME")" || return 0
-  [[ -n "$pack" ]] || return 0
-  name="$(elo_ui_input "New instance name" "fabric-modpack")" || return 0
-  [[ -n "$name" ]] || return 0
-  elo_cmd_import_mrpack "$name" "$pack"
+  local source pack addon provider name
+  source="$(elo_ui_choose_header "Import source" "Provider project" "Local .mrpack file")" || return 0
+  if [[ "$source" == "Local .mrpack file" ]]; then
+    pack="$(elo_ui_file "Select a Modrinth .mrpack file" "$HOME")" || return 0
+    [[ -n "$pack" ]] || return 0
+    name="$(elo_ui_input "New instance name" "fabric-modpack")" || return 0
+    [[ -n "$name" ]] || return 0
+    elo_cmd_import_mrpack "$name" "$pack"
+  else
+    addon="$(elo_ui_input "Modpack ID or slug" "fabulously-optimized")" || return 0
+    [[ -n "$addon" ]] || return 0
+    provider="$(elo_ui_select_provider "Import provider")" || return 0
+    name="$(elo_ui_input "New instance name" "fabric-modpack")" || return 0
+    [[ -n "$name" ]] || return 0
+    if [[ -n "$provider" ]]; then
+      elo_cmd_import "$name" "$addon" --provider "$provider"
+    else
+      elo_cmd_import "$name" "$addon"
+    fi
+  fi
 }
 
 elo_ui_activate() {
@@ -698,6 +731,7 @@ elo_ui_install() {
     addon="$(elo_ui_file "Select a Modrinth .mrpack file" "$HOME")" || return 0
     [[ -n "$addon" ]] || return 0
     provider="$(elo_preferred_provider)"
+    project_type="modpack"
   else
     addon="$(elo_ui_input "Addon ID or slug" "sodium")" || return 0
     [[ -n "$addon" ]] || return 0
@@ -711,6 +745,11 @@ elo_ui_install() {
         OptiFine) platform="optifine" ;;
       esac
     fi
+  fi
+  if [[ "$project_type" == "modpack" ]] && declare -F elo_mrpack_instance_is_empty >/dev/null 2>&1 &&
+    ! elo_mrpack_instance_is_empty "$instance"; then
+    "$ELO_GUM_COMMAND" style --foreground "$ELO_UI_ALERT" \
+      "Instance '$instance' is not empty. Installing into a new/empty instance is recommended to avoid conflicts."
   fi
   mode="$(elo_ui_choose_header "Installation mode" "Install addon" "Preview only (dry run)")" || return 0
   args=("$instance" "$addon")
@@ -815,16 +854,47 @@ elo_ui_provider() {
   esac
 }
 
+elo_ui_select_release_version() {
+  local repository="$1" snapshot errors status_file tag published prerelease selection
+  local -a options
+  elo_ui_cache_reset || return
+  snapshot="$ELO_UI_CACHE_DIR/releases"
+  errors="$ELO_UI_CACHE_DIR/errors"
+  status_file="$ELO_UI_CACHE_DIR/status"
+  elo_ui_run_with_spinner "Fetching releases from $repository..." "$snapshot" "$errors" "$status_file" \
+    elo_update_list_releases "$repository" || return 1
+  [[ -s "$snapshot" ]] || {
+    elo_warn "No releases found for $repository."
+    return 1
+  }
+  options=()
+  while IFS=$'\t' read -r tag published prerelease; do
+    [[ -n "$tag" ]] || continue
+    options+=("$tag ($published, $prerelease)")
+  done <"$snapshot"
+  selection="$(elo_ui_choose_header "Select a release" "${options[@]}")" || return 1
+  printf '%s\n' "${selection%% (*}"
+}
+
 elo_ui_update() {
-  local mode version
-  mode="$(elo_ui_choose_header "Elo release" "Latest stable release" "Specific version" "Back")" || return 0
+  local mode version updated=1
+  mode="$(elo_ui_choose_header "Elo release" \
+    "Latest stable release" "Specific version" "Browse releases" "Back")" || return 0
   case "$mode" in
-    "Latest stable release") elo_cmd_update ;;
+    "Latest stable release") elo_cmd_update && updated=0 ;;
     "Specific version")
       version="$(elo_ui_input "Release version" "v0.4.0")" || return 0
-      [[ -n "$version" ]] && elo_cmd_update --version "$version"
+      [[ -n "$version" ]] && elo_cmd_update --version "$version" && updated=0
+      ;;
+    "Browse releases")
+      version="$(elo_ui_select_release_version "$(elo_repository)")" || return 0
+      [[ -n "$version" ]] && elo_cmd_update --version "$version" && updated=0
       ;;
   esac
+  if ((updated == 0)) && declare -F elo_self_restart >/dev/null 2>&1; then
+    elo_self_restart
+  fi
+  return 0
 }
 
 elo_ui_uninstall() {
@@ -881,16 +951,16 @@ elo_ui_help() {
 elo_ui_instances_menu() {
   local action
   action="$(elo_ui_choose_header "Instances" \
-    "Create instance" "Import Modrinth modpack" "Change instance version" \
-    "Activate or switch instance" "List instances" \
-    "Reset managed links" "Remove instance" "Back")" || return 0
+    "Create instance" "Import modpack" "Change instance version" \
+    "Activate instance" "Reset managed links" "List instances" \
+    "Remove instance" "Back")" || return 0
   case "$action" in
     "Create instance") elo_ui_new ;;
-    "Import Modrinth modpack") elo_ui_import_mrpack ;;
+    "Import modpack") elo_ui_import_mrpack ;;
     "Change instance version") elo_ui_change_version ;;
-    "Activate or switch instance") elo_ui_activate ;;
-    "List instances") elo_ui_paginated_command "Instances" 1 "24,12,12,0" elo_cmd_list ;;
+    "Activate instance") elo_ui_activate ;;
     "Reset managed links") elo_cmd_reset ;;
+    "List instances") elo_ui_paginated_command "Instances" 1 "24,12,12,0" elo_cmd_list ;;
     "Remove instance") elo_ui_remove_instance ;;
   esac
 }
@@ -928,6 +998,7 @@ elo_ui_run() {
   local action
   ELO_UI_EXIT=0
   elo_ui_require || return
+  elo_check_for_updates || true
   ELO_UI_ACTIVE=1
 
   while true; do

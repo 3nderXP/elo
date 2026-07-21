@@ -4,6 +4,7 @@ set -euo pipefail
 
 ELO_REPOSITORY="${ELO_REPOSITORY:-3nderXP/elo}"
 ELO_REF="${ELO_REF:-main}"
+ELO_REF_EXPLICIT=0
 ELO_INSTALL_DIR="${ELO_INSTALL_DIR:-$HOME/.local/share/elo}"
 ELO_BIN_DIR="${ELO_BIN_DIR:-$HOME/.local/bin}"
 ELO_SOURCE_DIR=""
@@ -119,6 +120,7 @@ install_parse_options() {
       --ref)
         install_require_value "$1" "${2:-}"
         ELO_REF="$2"
+        ELO_REF_EXPLICIT=1
         shift 2
         ;;
       --terminal)
@@ -660,8 +662,13 @@ install_create_shortcut() {
 install_write_config() {
   local config="$ELO_INSTALL_DIR/install.conf"
   local temporary="$ELO_INSTALL_DIR/install.conf.tmp.$$"
+  local current_version="$ELO_REF"
 
-  case "$ELO_REPOSITORY$ELO_BIN_DIR$ELO_GUM_PATH$ELO_TERMINAL_COMMAND$ELO_SHORTCUT_PATH$ELO_WARP_CONFIG_PATH" in
+  if [[ -n "$ELO_SOURCE_DIR" && "$ELO_REF_EXPLICIT" != 1 ]]; then
+    current_version="development"
+  fi
+
+  case "$ELO_REPOSITORY$ELO_BIN_DIR$ELO_GUM_PATH$ELO_TERMINAL_COMMAND$ELO_SHORTCUT_PATH$ELO_WARP_CONFIG_PATH$current_version" in
     *'
 '*) install_die "Repository and installation paths cannot contain newlines." ;;
   esac
@@ -676,6 +683,7 @@ install_write_config() {
     printf 'TERMINAL_COMMAND=%s\n' "$ELO_TERMINAL_COMMAND"
     printf 'TERMINAL_MODE=%s\n' "$ELO_TERMINAL_MODE"
     printf 'WARP_CONFIG_PATH=%s\n' "$ELO_WARP_CONFIG_PATH"
+    printf 'CURRENT_VERSION=%s\n' "$current_version"
   } >"$temporary"
   mv "$temporary" "$config"
 }

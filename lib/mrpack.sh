@@ -230,7 +230,8 @@ elo_mrpack_apply_overrides() {
 }
 
 elo_mrpack_install_stage() {
-  local name="$1" pack="$2" index="$3" version="$4" loader="$5" stage="$6" stage_name
+  local name="$1" pack="$2" index="$3" version="$4" loader="$5" stage="$6"
+  local source="${7:-local}" source_version="${8:-}" stage_name
   local entry current=0 total path
   stage_name="${stage##*/}"
   mkdir -p -- "$stage"/{mods,resourcepacks,shaderpacks,config,saves}
@@ -242,8 +243,8 @@ elo_mrpack_install_stage() {
   elo_kv_set "$stage/instance.conf" NOTES "Imported from $(basename -- "$pack")"
   elo_kv_set "$stage/instance.conf" MODPACK_NAME "$(printf '%s' "$index" | jq -r '.name')"
   elo_kv_set "$stage/instance.conf" MODPACK_VERSION "$(printf '%s' "$index" | jq -r '.versionId')"
-  elo_kv_set "$stage/instance.conf" MODPACK_SOURCE local
-  elo_kv_set "$stage/instance.conf" MODPACK_SOURCE_VERSION ""
+  elo_kv_set "$stage/instance.conf" MODPACK_SOURCE "$source"
+  elo_kv_set "$stage/instance.conf" MODPACK_SOURCE_VERSION "$source_version"
 
   total="$(printf '%s' "$index" | jq '[.files[] | select((.env.client // "required") != "unsupported")] | length')"
   while IFS= read -r entry || [[ -n "$entry" ]]; do
@@ -439,16 +440,14 @@ elo_mrpack_install_into_instance() {
   [[ "$loader" == "vanilla" ]] || elo_warn "Elo records loader metadata but does not install the loader itself."
 }
 
-elo_mrpack_install_from_provider() {
-  local instance="$1" provider="$2" addon="$3" dry_run="$4"
-  local version loader metadata type temporary filename archive expected actual status
-  version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
-  loader="$(elo_instance_metadata "$instance" LOADER)"
+elo_mrpack_fetch_provider_archive() {
+  local provider="$1" addon="$2" version="$3" loader="$4"
+  local metadata type temporary filename archive expected actual
   metadata="$(elo_provider_call "$provider" resolve "$addon" "$version" "$loader")" || return
   type="$(printf '%s' "$metadata" | jq -r '.type')"
-  [[ "$type" == "modpack" ]] || { elo_die "Provider project is not a modpack: $addon"; return; }
+  [[ "$type" == "modpack" ]] || { elo_die "Provider project is not a modpack: $addon"; return 1; }
   temporary="$(mktemp -d "$ELO_INSTANCES_DIR/.elo-mrpack-source.XXXXXX")" || return
-  elo_info "Downloading modpack archive from $provider..."
+  elo_info "Downloading modpack archive from $provider..." >&2
   filename="$(elo_provider_call "$provider" download "$(printf '%s' "$metadata" | jq -r '.version_id')" "$temporary")" || {
     rm -rf -- "$temporary"
     return 1
@@ -461,29 +460,30 @@ elo_mrpack_install_from_provider() {
     elo_die "Downloaded modpack failed SHA-512 verification: $filename"
     return 1
   fi
-  status=0
-  elo_mrpack_install_into_instance "$instance" "$archive" "$dry_run" \
-    "$provider:$(printf '%s' "$metadata" | jq -r '.project_id')" \
-    "$(printf '%s' "$metadata" | jq -r '.version_id')" || status=$?
+  printf '%s\n' "$temporary"
+  printf '%s\n' "$archive"
+  printf '%s\n' "$provider:$(printf '%s' "$metadata" | jq -r '.project_id')"
+  printf '%s\n' "$(printf '%s' "$metadata" | jq -r '.version_id')"
+}
+
+elo_mrpack_install_from_provider() {
+  local instance="$1" provider="$2" addon="$3" dry_run="$4"
+  local version loader fetched temporary archive source source_version status=0
+  version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
+  loader="$(elo_instance_metadata "$instance" LOADER)"
+  fetched="$(elo_mrpack_fetch_provider_archive "$provider" "$addon" "$version" "$loader")" || return
+  temporary="$(sed -n '1p' <<<"$fetched")"
+  archive="$(sed -n '2p' <<<"$fetched")"
+  source="$(sed -n '3p' <<<"$fetched")"
+  source_version="$(sed -n '4p' <<<"$fetched")"
+  elo_mrpack_install_into_instance "$instance" "$archive" "$dry_run" "$source" "$source_version" || status=$?
   rm -rf -- "$temporary"
   return "$status"
 }
 
-elo_cmd_import_mrpack() {
-  local name="${1:-}" pack="${2:-}" index version loader directory stage file_count optional_count
-  elo_require_initialized || return
-  if [[ -z "$name" || -z "$pack" || "$name" == --* || "$pack" == --* ]]; then
-    elo_die "Usage: elo instances import <name> <file.mrpack> [--yes]"
-    return
-  fi
-  elo_validate_instance_name "$name" || return
-  shift 2
-  while (($# > 0)); do
-    case "$1" in
-      --yes) ELO_ASSUME_YES=1; shift ;;
-      *) elo_die "Invalid option for modpack import: $1"; return ;;
-    esac
-  done
+elo_mrpack_import_archive_as_instance() {
+  local name="$1" pack="$2" source="${3:-local}" source_version="${4:-}"
+  local index version loader directory stage file_count optional_count
   elo_mrpack_require_tools || return
   directory="$(elo_instance_dir "$name")"
   [[ ! -e "$directory" && ! -L "$directory" ]] || { elo_die "Instance '$name' already exists."; return; }
@@ -503,7 +503,7 @@ elo_cmd_import_mrpack() {
 
   mkdir -p -- "$ELO_INSTANCES_DIR"
   stage="$(mktemp -d "$ELO_INSTANCES_DIR/.elo-mrpack-$name.XXXXXX")" || return
-  if ! elo_mrpack_install_stage "$name" "$pack" "$index" "$version" "$loader" "$stage"; then
+  if ! elo_mrpack_install_stage "$name" "$pack" "$index" "$version" "$loader" "$stage" "$source" "$source_version"; then
     [[ -t 1 ]] && printf '\n'
     rm -rf -- "$stage"
     return 1
@@ -516,4 +516,64 @@ elo_cmd_import_mrpack() {
   mv -- "$stage" "$directory"
   elo_info "Modpack installed as instance: $name"
   [[ "$loader" == "vanilla" ]] || elo_warn "Elo records loader metadata but does not install the loader itself."
+}
+
+elo_mrpack_import_from_provider() {
+  local name="$1" provider="$2" addon="$3"
+  local fetched temporary archive source source_version status=0
+  fetched="$(elo_mrpack_fetch_provider_archive "$provider" "$addon" "" "")" || return
+  temporary="$(sed -n '1p' <<<"$fetched")"
+  archive="$(sed -n '2p' <<<"$fetched")"
+  source="$(sed -n '3p' <<<"$fetched")"
+  source_version="$(sed -n '4p' <<<"$fetched")"
+  elo_mrpack_import_archive_as_instance "$name" "$archive" "$source" "$source_version" || status=$?
+  rm -rf -- "$temporary"
+  return "$status"
+}
+
+elo_cmd_import_mrpack() {
+  local name="${1:-}" pack="${2:-}"
+  elo_require_initialized || return
+  if [[ -z "$name" || -z "$pack" || "$name" == --* || "$pack" == --* ]]; then
+    elo_die "Usage: elo instances import <name> <file.mrpack> [--yes]"
+    return
+  fi
+  elo_validate_instance_name "$name" || return
+  shift 2
+  while (($# > 0)); do
+    case "$1" in
+      --yes) ELO_ASSUME_YES=1; shift ;;
+      *) elo_die "Invalid option for modpack import: $1"; return ;;
+    esac
+  done
+  elo_mrpack_import_archive_as_instance "$name" "$pack" local ""
+}
+
+elo_cmd_import() {
+  local name="${1:-}" source="${2:-}" provider="" project_type
+  elo_require_initialized || return
+  if [[ -z "$name" || -z "$source" || "$name" == --* || "$source" == --* ]]; then
+    elo_die "Usage: elo instances import <name> <file.mrpack|id-or-slug> [--provider <name>] [--yes]"
+    return
+  fi
+  elo_validate_instance_name "$name" || return
+  shift 2
+  while (($# > 0)); do
+    case "$1" in
+      --provider) elo_require_value "$1" "${2:-}" || return; provider="$2"; shift 2 ;;
+      --yes) ELO_ASSUME_YES=1; shift ;;
+      *) elo_die "Invalid option for modpack import: $1"; return ;;
+    esac
+  done
+
+  if [[ "$source" == *.mrpack || -f "$source" || -L "$source" ]]; then
+    [[ -z "$provider" ]] || { elo_die "--provider cannot be used with a local .mrpack file."; return; }
+    elo_mrpack_import_archive_as_instance "$name" "$source" local ""
+    return
+  fi
+
+  provider="${provider:-$(elo_preferred_provider)}"
+  project_type="$(elo_provider_call "$provider" project_type "$source")" || return
+  [[ "$project_type" == "modpack" ]] || { elo_die "Provider project is not a modpack: $source"; return; }
+  elo_mrpack_import_from_provider "$name" "$provider" "$source"
 }

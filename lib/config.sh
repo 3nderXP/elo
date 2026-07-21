@@ -99,6 +99,23 @@ elo_state_unset() {
   elo_kv_unset "$ELO_STATE_FILE" "$1"
 }
 
+elo_install_dir() {
+  local releases
+  releases="$(dirname -- "$ELO_SCRIPT_DIR")"
+  [[ "$(basename -- "$releases")" == "releases" ]] || return 1
+  dirname -- "$releases"
+}
+
+elo_repository() {
+  local install_root repo
+  install_root="$(elo_install_dir)" || {
+    printf '%s\n' "${ELO_REPOSITORY:-3nderXP/elo}"
+    return 0
+  }
+  repo="$(elo_update_read_config "$install_root/install.conf" REPOSITORY || true)"
+  printf '%s\n' "${repo:-${ELO_REPOSITORY:-3nderXP/elo}}"
+}
+
 elo_require_initialized() {
   if [[ ! -f "$ELO_CONFIG_FILE" ]]; then
     elo_die "Elo is not initialized. Run 'elo init --minecraft-path <path>'."

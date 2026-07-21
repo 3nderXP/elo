@@ -155,7 +155,9 @@ elo
 ```
 
 Use the arrow keys to move, Enter to select, and the interface prompts to
-confirm changes.
+confirm changes. The header shows the installed version (or `development`
+outside an installed release) in a small badge and checks GitHub for a newer
+stable release, flagging one when available.
 
 ### 3. Create an instance
 
@@ -167,13 +169,13 @@ Choose **Instances**, then **Create instance**, and provide:
 
 ### 4. Activate it
 
-Choose **Instances**, then **Activate or switch instance**, and select the
+Choose **Instances**, then **Activate instance**, and select the
 instance. Keep the recommended backup mode unless you deliberately want to
 delete existing managed directories. On first activation, Elo backs up those
 directories and connects `.minecraft` to the selected instance.
 
 To create the instance from a local Modrinth modpack instead, choose
-**Import Modrinth modpack**, select the `.mrpack`, and provide an instance name.
+**Import modpack**, select the `.mrpack`, and provide an instance name.
 
 ### 5. Search and install addons
 
@@ -281,6 +283,7 @@ restores the original directories.
 | `elo status` | Diagnose links, backups, and the active instance |
 | `elo update` | Install the latest stable Elo release |
 | `elo uninstall` | Remove Elo while preserving instance data |
+| `elo version` (`--version`, `-v`) | Print the installed Elo version |
 | `elo help [command] [subcommand]` | Show detailed help |
 
 ### Instance commands
@@ -422,7 +425,10 @@ elo update --version v0.4.0
 ```
 
 After a successful update, Elo retains the active and immediately previous
-releases for recovery and removes older installer-managed releases.
+releases for recovery and removes older installer-managed releases. Updating
+from System > Update Elo in the interactive interface restarts Elo in place
+afterward, so the new release is active immediately without reopening the
+interface manually.
 
 ## Uninstall Elo
 
@@ -503,6 +509,10 @@ PATH="$TEST_DIR/bin:$PATH" \
 ELO_HOME="$TEST_DIR/data" \
 "$TEST_DIR/bin/elo"
 ```
+
+A `--source` install records its version as `development` (unless `--ref` is
+also given explicitly), since a local checkout is not tied to a published
+release.
 
 After testing, remove the isolated files:
 

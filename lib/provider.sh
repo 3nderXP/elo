@@ -28,7 +28,7 @@ elo_search_page() {
   local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
   local version="" loader=""
   elo_require_initialized || return
-  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || {
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" || "$type" == "modpack" ]] || {
     elo_die "Invalid addon type: $type"
     return 1
   }
@@ -304,7 +304,7 @@ elo_cmd_search() {
       *) elo_die "Invalid option for search: $1"; return ;;
     esac
   done
-  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" ]] || { elo_die "Invalid addon type: $type"; return; }
+  [[ -z "$type" || "$type" == "mod" || "$type" == "resourcepack" || "$type" == "shader" || "$type" == "modpack" ]] || { elo_die "Invalid addon type: $type"; return; }
   [[ "$limit" =~ ^[0-9]+$ ]] && ((limit >= 1 && limit <= 100)) || { elo_die "--limit must be between 1 and 100."; return; }
   instance="${instance:-$(elo_active_instance)}"
   provider="${provider:-$(elo_preferred_provider)}"
@@ -463,7 +463,9 @@ elo_addon_install_recursive() {
     ELO_ADDON_LAST_KEY="$key"
     return 0
   fi
+  elo_progress "Addon" 0 1 "$(printf '%s' "$metadata" | jq -r '.filename // .name')"
   filename="$(elo_provider_call "$provider" download "$(printf '%s' "$metadata" | jq -r '.version_id')" "$target")" || return
+  elo_progress "Addon" 1 1 "$filename"
   metadata="$(printf '%s' "$metadata" | jq -c --arg filename "$filename" '.filename = $filename')"
   actual_hash="$(elo_file_sha512 "$target/$filename")" || return
   if [[ -n "$expected_hash" && "$actual_hash" != "$expected_hash" ]]; then
@@ -478,9 +480,9 @@ elo_addon_install_recursive() {
 }
 
 elo_cmd_install() {
-  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0
+  local instance="${1:-}" addon="${2:-}" provider="" platform="" dry_run=0 project_type
   elo_require_initialized || return
-  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug> [options]"; return; fi
+  if [[ -z "$instance" || -z "$addon" || "$instance" == --* || "$addon" == --* ]]; then elo_die "Usage: elo addons install <instance> <id-or-slug|file.mrpack> [options]"; return; fi
   elo_require_instance "$instance" || return
   shift 2
   while (($# > 0)); do
@@ -497,6 +499,17 @@ elo_cmd_install() {
     return 1
   }
   provider="${provider:-$(elo_preferred_provider)}"
+  if [[ "$addon" == *.mrpack || -f "$addon" || -L "$addon" ]]; then
+    [[ -z "$platform" ]] || { elo_die "--platform cannot be used with a modpack."; return; }
+    elo_mrpack_install_into_instance "$instance" "$addon" "$dry_run" local ""
+    return
+  fi
+  project_type="$(elo_provider_call "$provider" project_type "$addon")" || return
+  if [[ "$project_type" == "modpack" ]]; then
+    [[ -z "$platform" ]] || { elo_die "--platform cannot be used with a modpack."; return; }
+    elo_mrpack_install_from_provider "$instance" "$provider" "$addon" "$dry_run"
+    return
+  fi
   ELO_INSTALL_PLAN_VISITED=""
   ELO_INSTALL_PLAN_LINES=""
   elo_install_plan_resolve "$instance" "$provider" "$addon" addon "" "$platform" || return
@@ -510,6 +523,411 @@ elo_cmd_install() {
   elo_confirm "Install '$addon' and required dependencies into '$instance'?" || { elo_warn "Installation cancelled."; return 1; }
   ELO_ADDON_INSTALL_VISITED=""
   elo_addon_install_recursive "$instance" "$provider" "$addon" false "" "$platform"
+}
+
+elo_version_relation() {
+  local current="$1" target="$2"
+  if [[ "$current" == "$target" ]]; then
+    printf 'same\n'
+    return
+  fi
+  if [[ "$current" =~ ^[0-9]+([.][0-9]+)*$ && "$target" =~ ^[0-9]+([.][0-9]+)*$ ]]; then
+    awk -v current="$current" -v target="$target" '
+      BEGIN {
+        current_count = split(current, current_part, ".")
+        target_count = split(target, target_part, ".")
+        count = current_count > target_count ? current_count : target_count
+        for (i = 1; i <= count; i++) {
+          current_value = current_part[i] + 0
+          target_value = target_part[i] + 0
+          if (target_value > current_value) { print "upgrade"; exit }
+          if (target_value < current_value) { print "downgrade"; exit }
+        }
+        print "same"
+      }'
+  else
+    printf 'change\n'
+  fi
+}
+
+elo_migration_safe_field() {
+  local value="$1"
+  value="${value//$'\t'/ }"
+  value="${value//$'\n'/ }"
+  printf '%s' "$value"
+}
+
+elo_migration_plan_add() {
+  local state="$1" key="$2" name="$3" current="$4" target="$5" type="$6"
+  local old_filename="$7" new_filename="$8" metadata="$9"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$state" "$key" "$(elo_migration_safe_field "$name")" \
+    "$(elo_migration_safe_field "$current")" "$(elo_migration_safe_field "$target")" \
+    "$type" "$(elo_migration_safe_field "$old_filename")" \
+    "$(elo_migration_safe_field "$new_filename")" "$metadata"
+}
+
+elo_migration_shader_platform() {
+  local provider="$1" project_id="$2" old_version="$3" loader="$4" metadata platforms
+  metadata="$(elo_provider_call "$provider" resolve "$project_id" unknown "$loader" \
+    "$old_version" "" 2>/dev/null || true)"
+  [[ -n "$metadata" ]] || return 0
+  platforms="$(printf '%s' "$metadata" | jq -r '.platforms[]?' 2>/dev/null || true)"
+  if [[ "$platforms" == *iris* ]]; then printf 'iris\n'
+  elif [[ "$platforms" == *optifine* ]]; then printf 'optifine\n'
+  fi
+}
+
+elo_migration_plan_build() {
+  local instance="$1" target_version="$2" file loader key provider project_id name
+  local current_version current_version_id type old_filename expected target_metadata=""
+  local target_version_id target_version_number new_filename target_type platform="" error_file
+  local target target_dir target_hash actual physical_state inventory_state inventory_type inventory_file
+  file="$(elo_addon_registry "$instance")"
+  loader="$(elo_instance_metadata "$instance" LOADER)"
+  error_file="$(mktemp "${TMPDIR:-/tmp}/elo-migration-errors.XXXXXX")" || return
+
+  while IFS= read -r key || [[ -n "$key" ]]; do
+    [[ -n "$key" ]] || continue
+    provider="${key%%:*}"
+    project_id="${key#*:}"
+    name="$(elo_kv_get "$file" "${key}_name" || true)"
+    current_version="$(elo_kv_get "$file" "${key}_version_number" || true)"
+    current_version_id="$(elo_kv_get "$file" "${key}_version_id" || true)"
+    type="$(elo_kv_get "$file" "${key}_type" || true)"
+    old_filename="$(elo_kv_get "$file" "${key}_filename" || true)"
+    expected="$(elo_kv_get "$file" "${key}_sha512" || true)"
+    target_dir="$(elo_addon_type_dir "$instance" "$type" 2>/dev/null || true)"
+    if [[ -z "$target_dir" ]]; then
+      elo_migration_plan_add unmanaged "$key" "$name" "$current_version" - \
+        "$type" "$old_filename" - '{}'
+      continue
+    fi
+    target="$target_dir/$old_filename"
+    physical_state=verified
+    if [[ ! -e "$target" && ! -L "$target" ]]; then
+      physical_state=missing
+    elif [[ ! -f "$target" || -L "$target" || -z "$expected" ]]; then
+      physical_state=modified
+    else
+      actual="$(elo_file_sha512 "$target")" || { rm -f -- "$error_file"; return; }
+      [[ "$actual" == "$expected" ]] || physical_state=modified
+    fi
+
+    if ! elo_provider_is_available "$provider"; then
+      elo_migration_plan_add "$([[ "$physical_state" == modified ]] && printf modified || printf unmanaged)" \
+        "$key" "$name" "$current_version" - "$type" "$old_filename" - '{}'
+      continue
+    fi
+
+    platform=""
+    [[ "$type" != shader ]] || platform="$(elo_migration_shader_platform \
+      "$provider" "$project_id" "$current_version_id" "$loader")"
+    : >"$error_file"
+    if ! target_metadata="$(elo_provider_call "$provider" resolve "$project_id" \
+      "$target_version" "$loader" "" "$platform" 2>"$error_file")"; then
+      if [[ -s "$error_file" ]] && ! grep -F "No compatible" "$error_file" >/dev/null 2>&1; then
+        cat -- "$error_file" >&2
+        rm -f -- "$error_file"
+        return 1
+      fi
+      elo_migration_plan_add "$([[ "$physical_state" == modified ]] && printf modified || printf unavailable)" \
+        "$key" "$name" "$current_version" - "$type" "$old_filename" - '{}'
+      continue
+    fi
+
+    target_version_id="$(printf '%s' "$target_metadata" | jq -r '.version_id')"
+    target_version_number="$(printf '%s' "$target_metadata" | jq -r '.version_number')"
+    new_filename="$(printf '%s' "$target_metadata" | jq -r '.filename')"
+    target_type="$(printf '%s' "$target_metadata" | jq -r '.type')"
+    target_hash="$(printf '%s' "$target_metadata" | jq -r '.sha512 // ""')"
+    if [[ "$physical_state" == modified ]]; then
+      elo_migration_plan_add modified "$key" "$name" "$current_version" \
+        "$target_version_number" "$type" "$old_filename" "$new_filename" "$target_metadata"
+    elif [[ "$target_type" != "$type" ]]; then
+      elo_migration_plan_add unavailable "$key" "$name" "$current_version" - \
+        "$type" "$old_filename" - '{}'
+    elif [[ "$physical_state" == missing ]]; then
+      elo_migration_plan_add restore "$key" "$name" "$current_version" \
+        "$target_version_number" "$type" "$old_filename" "$new_filename" "$target_metadata"
+    elif [[ "$new_filename" != "$old_filename" && -e "$(elo_addon_type_dir "$instance" "$type")/$new_filename" ]]; then
+      elo_migration_plan_add collision "$key" "$name" "$current_version" \
+        "$target_version_number" "$type" "$old_filename" "$new_filename" "$target_metadata"
+    elif [[ -z "$target_hash" ]]; then
+      elo_migration_plan_add unavailable "$key" "$name" "$current_version" - \
+        "$type" "$old_filename" - '{}'
+    elif [[ "$target_version_id" == "$current_version_id" ]]; then
+      elo_migration_plan_add keep "$key" "$name" "$current_version" \
+        "$target_version_number" "$type" "$old_filename" "$new_filename" "$target_metadata"
+    else
+      elo_migration_plan_add update "$key" "$name" "$current_version" \
+        "$target_version_number" "$type" "$old_filename" "$new_filename" "$target_metadata"
+    fi
+  done < <(elo_addon_ids "$instance")
+  while IFS=$'\t' read -r inventory_state inventory_type inventory_file; do
+    [[ "$inventory_state" == external ]] || continue
+    elo_migration_plan_add external "external:$inventory_type:$inventory_file" \
+      "$inventory_file" - - "$inventory_type" "$inventory_file" - '{}'
+  done < <(elo_addons_list_inventory "$instance")
+  rm -f -- "$error_file"
+}
+
+elo_migration_plan_state() {
+  local plan="$1" wanted="$2"
+  awk -F '\t' -v wanted="$wanted" '$2 == wanted { print $1; exit }' "$plan"
+}
+
+elo_migration_plan_key_by_version() {
+  local plan="$1" wanted="$2" state key name current target type old_filename new_filename metadata
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    [[ "$metadata" != '{}' ]] || continue
+    [[ "$(printf '%s' "$metadata" | jq -r '.version_id // ""')" == "$wanted" ]] || continue
+    printf '%s\n' "$key"
+    return 0
+  done <"$plan"
+  return 1
+}
+
+elo_migration_plan_finalize() {
+  local plan="$1" current next changed=1 state key name current_version target type old_filename new_filename metadata
+  local provider dep_project dep_version dep_key dep_state blocked
+  current="$(mktemp "${TMPDIR:-/tmp}/elo-migration-finalize.XXXXXX")" || return
+  next="$current.next"
+  cp -- "$plan" "$current"
+  while ((changed == 1)); do
+    changed=0
+    : >"$next"
+    while IFS=$'\t' read -r state key name current_version target type old_filename new_filename metadata; do
+      blocked=0
+      if [[ "$state" == update || "$state" == restore || "$state" == keep ]]; then
+        provider="${key%%:*}"
+        while IFS=$'\t' read -r dep_project dep_version; do
+          [[ "$dep_project" == "-" ]] && dep_project=""
+          [[ "$dep_version" == "-" ]] && dep_version=""
+          [[ -n "$dep_project" || -n "$dep_version" ]] || continue
+          if [[ -n "$dep_project" ]]; then
+            dep_key="$provider:$dep_project"
+          else
+            dep_key="$(elo_migration_plan_key_by_version "$current" "$dep_version" || true)"
+          fi
+          [[ -n "$dep_key" ]] || { blocked=1; break; }
+          dep_state="$(elo_migration_plan_state "$current" "$dep_key")"
+          case "$dep_state" in
+            keep | update | restore) ;;
+            *) blocked=1; break ;;
+          esac
+        done < <(printf '%s' "$metadata" | jq -r \
+          '.dependencies[]? | select(.dependency_type == "required") | [(.project_id // "-"), (.version_id // "-")] | @tsv')
+      fi
+      if ((blocked == 1)) && [[ "$state" != blocked ]]; then
+        state=blocked
+        changed=1
+      fi
+      elo_migration_plan_add "$state" "$key" "$name" "$current_version" "$target" \
+        "$type" "$old_filename" "$new_filename" "$metadata" >>"$next"
+    done <"$current"
+    mv -- "$next" "$current"
+  done
+  cat -- "$current"
+  rm -f -- "$current"
+}
+
+elo_migration_plan_create() {
+  local instance="$1" target_version="$2" raw
+  raw="$(mktemp "${TMPDIR:-/tmp}/elo-migration-raw.XXXXXX")" || return
+  elo_migration_plan_build "$instance" "$target_version" >"$raw" || { rm -f -- "$raw"; return 1; }
+  elo_migration_plan_finalize "$raw"
+  local status=$?
+  rm -f -- "$raw"
+  return "$status"
+}
+
+elo_migration_plan_print() {
+  local plan="$1" state key name current target type old_filename new_filename metadata
+  printf 'Addon migration analysis:\n\n'
+  printf '%-12s %-24s %-28s %-20s %-20s %s\n' STATE SOURCE NAME CURRENT TARGET TYPE
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    [[ -n "$state" ]] || continue
+    printf '%-12s %-24s %-28s %-20s %-20s %s\n' \
+      "$state" "$key" "$name" "$current" "$target" "$type"
+  done <"$plan"
+}
+
+elo_migration_key_selected() {
+  local key="$1" selected="$2"
+  [[ ",$selected," == *",$key,"* ]]
+}
+
+elo_migration_registry_update() {
+  local instance="$1" key="$2" metadata="$3" file
+  file="$(elo_addon_registry "$instance")"
+  elo_kv_set "$file" "${key}_slug" "$(printf '%s' "$metadata" | jq -r '.slug')"
+  elo_kv_set "$file" "${key}_name" "$(printf '%s' "$metadata" | jq -r '.name')"
+  elo_kv_set "$file" "${key}_version_id" "$(printf '%s' "$metadata" | jq -r '.version_id')"
+  elo_kv_set "$file" "${key}_version_number" "$(printf '%s' "$metadata" | jq -r '.version_number')"
+  elo_kv_set "$file" "${key}_filename" "$(printf '%s' "$metadata" | jq -r '.filename')"
+  elo_kv_set "$file" "${key}_sha512" "$(printf '%s' "$metadata" | jq -r '.sha512')"
+  elo_kv_set "$file" "${key}_type" "$(printf '%s' "$metadata" | jq -r '.type')"
+  elo_addon_cache_invalidate "$instance" "$key" || true
+}
+
+elo_migration_dependencies_update() {
+  local instance="$1" plan="$2" file state key name current target type old_filename new_filename metadata
+  local provider dep_project dep_version dep_key dependencies
+  file="$(elo_addon_registry "$instance")"
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    [[ "$state" == update || "$state" == restore ]] || continue
+    provider="${key%%:*}"
+    dependencies=""
+    while IFS=$'\t' read -r dep_project dep_version; do
+      [[ "$dep_project" == "-" ]] && dep_project=""
+      [[ "$dep_version" == "-" ]] && dep_version=""
+      if [[ -n "$dep_project" ]]; then
+        dep_key="$provider:$dep_project"
+      else
+        dep_key="$(elo_migration_plan_key_by_version "$plan" "$dep_version" || true)"
+      fi
+      [[ -n "$dep_key" ]] || continue
+      dependencies="${dependencies}${dependencies:+,}$dep_key"
+    done < <(printf '%s' "$metadata" | jq -r \
+      '.dependencies[]? | select(.dependency_type == "required") | [(.project_id // "-"), (.version_id // "-")] | @tsv')
+    elo_kv_set "$file" "${key}_dependencies" "$dependencies"
+  done <"$plan"
+}
+
+elo_migration_apply() {
+  local instance="$1" target_version="$2" plan="$3" remove_keys="${4:-}"
+  local directory stage backup timestamp state key name current target type old_filename new_filename metadata
+  local provider version_id staged_filename expected actual source destination old_path
+  directory="$(elo_instance_dir "$instance")"
+  stage="$(mktemp -d "$directory/.elo-migration-stage.XXXXXX")" || return
+
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    [[ "$state" == update || "$state" == restore ]] || continue
+    mkdir -p -- "$stage/$type"
+    [[ ! -e "$stage/$type/$new_filename" ]] || {
+      elo_die "Migration filename collision: $new_filename"
+      rm -rf -- "$stage"
+      return 1
+    }
+    provider="${key%%:*}"
+    version_id="$(printf '%s' "$metadata" | jq -r '.version_id')"
+    staged_filename="$(elo_provider_call "$provider" download "$version_id" "$stage/$type")" || {
+      rm -rf -- "$stage"
+      return 1
+    }
+    [[ "$staged_filename" == "$new_filename" && -f "$stage/$type/$new_filename" ]] || {
+      elo_die "Provider returned an unexpected migration file: $staged_filename"
+      rm -rf -- "$stage"
+      return 1
+    }
+    expected="$(printf '%s' "$metadata" | jq -r '.sha512')"
+    actual="$(elo_file_sha512 "$stage/$type/$new_filename")" || { rm -rf -- "$stage"; return; }
+    [[ -n "$expected" && "$actual" == "$expected" ]] || {
+      elo_die "Migrated addon failed SHA-512 verification: $new_filename"
+      rm -rf -- "$stage"
+      return 1
+    }
+  done <"$plan"
+
+  timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
+  mkdir -p -- "$directory/.elo-migrations"
+  backup="$(mktemp -d "$directory/.elo-migrations/${timestamp}.XXXXXX")" || {
+    rm -rf -- "$stage"
+    return 1
+  }
+  mkdir -p -- "$backup/files"
+  printf '%s\n' "$target_version" >"$backup/target-version"
+  cp -- "$directory/instance.conf" "$backup/instance.conf"
+  [[ ! -f "$directory/addons.conf" ]] || cp -- "$directory/addons.conf" "$backup/addons.conf"
+
+  while IFS=$'\t' read -r state key name current target type old_filename new_filename metadata; do
+    old_path="$(elo_addon_type_dir "$instance" "$type")/$old_filename"
+    if [[ "$state" == update || "$state" == restore ]]; then
+      destination="$(elo_addon_type_dir "$instance" "$type")/$new_filename"
+      if [[ -e "$old_path" || -L "$old_path" ]]; then
+        mkdir -p -- "$backup/files/$type"
+        mv -- "$old_path" "$backup/files/$type/$old_filename"
+      fi
+      mv -- "$stage/$type/$new_filename" "$destination"
+      elo_migration_registry_update "$instance" "$key" "$metadata" || return
+      elo_info "Migrated: $name ($current -> $target)"
+    elif elo_migration_key_selected "$key" "$remove_keys"; then
+      if [[ -e "$old_path" || -L "$old_path" ]]; then
+        expected="$(elo_kv_get "$(elo_addon_registry "$instance")" "${key}_sha512" || true)"
+        [[ -f "$old_path" && ! -L "$old_path" && -n "$expected" ]] || {
+          elo_warn "Kept unsafe addon: $name"
+          continue
+        }
+        actual="$(elo_file_sha512 "$old_path")" || return
+        [[ "$actual" == "$expected" ]] || { elo_warn "Kept modified addon: $name"; continue; }
+        mkdir -p -- "$backup/files/$type"
+        mv -- "$old_path" "$backup/files/$type/$old_filename"
+      fi
+      elo_addon_registry_remove "$instance" "$key"
+      elo_info "Removed incompatible addon: $name"
+    fi
+  done <"$plan"
+
+  elo_migration_dependencies_update "$instance" "$plan" || return
+  elo_kv_set "$directory/instance.conf" MINECRAFT_VERSION "$target_version"
+  rm -rf -- "$stage"
+  elo_info "Instance version changed to $target_version. Migration backup: $backup"
+}
+
+elo_cmd_instance_version() {
+  local instance="${1:-}" target_version="${2:-}" migrate=0 remove_incompatible=0 dry_run=0
+  local current_version relation plan remove_keys="" state key name rest
+  elo_require_initialized || return
+  if [[ -z "$instance" || -z "$target_version" || "$instance" == --* || "$target_version" == --* ]]; then
+    elo_die "Usage: elo instances version <name> <version> [--migrate] [--remove-incompatible] [--dry-run] [--yes]"
+    return
+  fi
+  elo_require_instance "$instance" || return
+  shift 2
+  while (($# > 0)); do
+    case "$1" in
+      --migrate) migrate=1; shift ;;
+      --remove-incompatible) remove_incompatible=1; shift ;;
+      --dry-run) dry_run=1; shift ;;
+      --yes) ELO_ASSUME_YES=1; shift ;;
+      *) elo_die "Invalid option for instance version: $1"; return ;;
+    esac
+  done
+  ((remove_incompatible == 0 || migrate == 1)) || {
+    elo_die "--remove-incompatible requires --migrate."
+    return 1
+  }
+  current_version="$(elo_instance_metadata "$instance" MINECRAFT_VERSION)"
+  relation="$(elo_version_relation "$current_version" "$target_version")"
+  [[ "$relation" != same ]] || { elo_info "Instance already uses Minecraft $target_version."; return 0; }
+  elo_warn "Minecraft version $relation: $current_version -> $target_version. Existing addons may be incompatible and can break startup or worlds."
+  plan="$(mktemp "${TMPDIR:-/tmp}/elo-migration-plan.XXXXXX")" || return
+  elo_migration_plan_create "$instance" "$target_version" >"$plan" || { rm -f -- "$plan"; return 1; }
+  elo_migration_plan_print "$plan"
+  ((dry_run == 0)) || { rm -f -- "$plan"; return 0; }
+  if ((migrate == 0)); then
+    elo_confirm "Change '$instance' to Minecraft $target_version without migrating addons?" || {
+      rm -f -- "$plan"; elo_warn "Version change cancelled."; return 1;
+    }
+    elo_kv_set "$(elo_instance_dir "$instance")/instance.conf" MINECRAFT_VERSION "$target_version"
+    rm -f -- "$plan"
+    elo_warn "Version changed; addon files were kept unchanged."
+    return 0
+  fi
+  if ((remove_incompatible == 1)); then
+    while IFS=$'\t' read -r state key name rest; do
+      [[ "$state" == unavailable || "$state" == unmanaged || "$state" == blocked ]] || continue
+      remove_keys="${remove_keys}${remove_keys:+,}$key"
+    done <"$plan"
+  fi
+  elo_confirm "Migrate compatible addons and change '$instance' to Minecraft $target_version?" || {
+    rm -f -- "$plan"; elo_warn "Migration cancelled."; return 1;
+  }
+  elo_migration_apply "$instance" "$target_version" "$plan" "$remove_keys"
+  local status=$?
+  rm -f -- "$plan"
+  return "$status"
 }
 
 elo_addon_registry_inventory() {

@@ -2,11 +2,16 @@
 
 set -euo pipefail
 
+unset ELO_APPLICATIONS_DIR ELO_TERMINAL ELO_GUM_FORCE_INSTALL
+unset ELO_GUM_REPOSITORY ELO_GUM_VERSION ELO_REPOSITORY ELO_REF
+
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/elo-install-tests.XXXXXX")"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 export HOME="$TEST_ROOT/home"
 mkdir -p "$HOME"
+export XDG_DATA_HOME="$TEST_ROOT/xdg data"
+export ELO_APPLICATIONS_DIR="$XDG_DATA_HOME/applications"
 
 INSTALL_DIR="$TEST_ROOT/install root"
 BIN_DIR="$TEST_ROOT/bin"
@@ -17,13 +22,45 @@ FAKE_REMOTE="$TEST_ROOT/remote"
 FAKE_CURL_LOG="$TEST_ROOT/curl.log"
 export FAKE_REMOTE FAKE_CURL_LOG
 export PATH="$BIN_DIR:$FAKE_BIN:$SYSTEM_PATH"
+TERMINAL_LOG="$TEST_ROOT/terminal.log"
+OPEN_LOG="$TEST_ROOT/open.log"
+export TERMINAL_LOG
+export OPEN_LOG
+export TERM_PROGRAM=kitty
 
 mkdir -p "$FAKE_BIN"
 cat >"$FAKE_BIN/gum" <<'EOF'
 #!/usr/bin/env bash
+if [[ "${1:-}" == "choose" ]]; then
+  for option in "$@"; do
+    if [[ "$option" == "Kitty" ]]; then
+      printf 'Kitty\n'
+      exit 0
+    fi
+  done
+fi
 exit 0
 EOF
 chmod +x "$FAKE_BIN/gum"
+cat >"$FAKE_BIN/kitty" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$TERMINAL_LOG"
+EOF
+chmod +x "$FAKE_BIN/kitty"
+cat >"$FAKE_BIN/warp-terminal" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$OPEN_LOG"
+EOF
+cat >"$FAKE_BIN/xdg-open" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$OPEN_LOG"
+EOF
+chmod +x "$FAKE_BIN/warp-terminal" "$FAKE_BIN/xdg-open"
+cat >"$FAKE_BIN/open" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$OPEN_LOG"
+EOF
+chmod +x "$FAKE_BIN/open"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -53,11 +90,37 @@ assert_release_count() {
 [[ -x "$COMMAND" ]] || fail "the elo command should be executable"
 [[ -f "$INSTALL_DIR/current/assets/branding/elo.asc" ]] ||
   fail "the installed release should include the terminal logo"
+[[ -f "$INSTALL_DIR/current/assets/branding/shortcut-icon.png" ]] ||
+  fail "the installed release should include the shortcut icon"
 cmp "$PROJECT_DIR/assets/branding/elo.asc" \
   "$INSTALL_DIR/current/assets/branding/elo.asc" >/dev/null ||
   fail "the installer should preserve the terminal logo byte for byte"
 grep -F "BIN_DIR=$BIN_DIR" "$INSTALL_DIR/install.conf" >/dev/null ||
   fail "installer should persist the command directory for updates"
+SHORTCUT="$ELO_APPLICATIONS_DIR/elo.desktop"
+if [[ ! -f "$SHORTCUT" ]]; then
+  printf 'diagnostic: expected shortcut: %s\n' "$SHORTCUT" >&2
+  printf 'diagnostic: install.conf follows\n' >&2
+  sed -n '1,20p' "$INSTALL_DIR/install.conf" >&2 || true
+  fail "installer should create an application shortcut"
+fi
+grep -Fx 'X-Elo-Managed=true' "$SHORTCUT" >/dev/null ||
+  fail "shortcut should be marked as installer-managed"
+grep -F "TERMINAL_COMMAND=$FAKE_BIN/kitty" "$INSTALL_DIR/install.conf" >/dev/null ||
+  fail "installer should persist the detected terminal"
+"$INSTALL_DIR/current/lib/launcher.sh"
+grep -Fx "$INSTALL_DIR/current/elo.sh" "$TERMINAL_LOG" >/dev/null ||
+  fail "shortcut launcher should open Elo in the selected terminal"
+
+awk -F= '$1 !~ /^(SHORTCUT_ENABLED|SHORTCUT_PATH|TERMINAL_ID|TERMINAL_COMMAND|TERMINAL_MODE|WARP_CONFIG_PATH)$/ { print }' \
+  "$INSTALL_DIR/install.conf" >"$INSTALL_DIR/install.conf.legacy"
+mv "$INSTALL_DIR/install.conf.legacy" "$INSTALL_DIR/install.conf"
+rm "$SHORTCUT"
+"$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" >/dev/null
+[[ -f "$SHORTCUT" ]] || fail "legacy installations should receive shortcut setup"
+grep -F 'SHORTCUT_ENABLED=1' "$INSTALL_DIR/install.conf" >/dev/null ||
+  fail "legacy shortcut migration should persist its result"
 
 output="$("$COMMAND" --help)"
 [[ "$output" == *"Elo — Minecraft instance manager"* ]] ||
@@ -76,6 +139,66 @@ second_release="$(readlink "$INSTALL_DIR/current")"
   fail "reinstalling should activate a new release"
 "$COMMAND" --help >/dev/null ||
   fail "the command should remain functional after reinstalling"
+
+"$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" --no-shortcut >/dev/null
+[[ ! -e "$SHORTCUT" ]] || fail "--no-shortcut should remove the managed shortcut"
+
+"$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" \
+  --configure-shortcut >/dev/null
+[[ -f "$SHORTCUT" ]] || fail "--configure-shortcut should recreate the shortcut"
+
+"$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" \
+  --terminal warp-terminal >/dev/null
+WARP_CONFIG="$XDG_DATA_HOME/warp-terminal/launch_configurations/elo-cli.yaml"
+[[ -f "$WARP_CONFIG" ]] || fail "Warp selection should create a launch configuration"
+"$INSTALL_DIR/current/lib/launcher.sh"
+grep -Fx 'warp://launch/Elo%20CLI' "$OPEN_LOG" >/dev/null ||
+  fail "Warp launcher should open Elo's launch configuration URI"
+
+"$PROJECT_DIR/install.sh" --source "$PROJECT_DIR" \
+  --install-dir "$INSTALL_DIR" --bin-dir "$BIN_DIR" --terminal kitty >/dev/null
+[[ -f "$SHORTCUT" ]] || fail "terminal override should recreate the shortcut"
+[[ ! -e "$WARP_CONFIG" ]] || fail "changing terminals should remove Elo's Warp configuration"
+
+MAC_INSTALL_DIR="$TEST_ROOT/mac install root"
+MAC_BIN_DIR="$TEST_ROOT/mac bin"
+MAC_APPLICATIONS_DIR="$TEST_ROOT/mac applications"
+MAC_SHORTCUT="$MAC_APPLICATIONS_DIR/Elo.app"
+cat >"$FAKE_BIN/uname" <<'EOF'
+#!/usr/bin/env bash
+printf 'Darwin\n'
+EOF
+chmod +x "$FAKE_BIN/uname"
+ELO_APPLICATIONS_DIR="$MAC_APPLICATIONS_DIR" "$PROJECT_DIR/install.sh" \
+  --source "$PROJECT_DIR" --install-dir "$MAC_INSTALL_DIR" \
+  --bin-dir "$MAC_BIN_DIR" >/dev/null
+[[ -d "$MAC_SHORTCUT" ]] || fail "macOS installation should create Elo.app"
+[[ -x "$MAC_SHORTCUT/Contents/MacOS/Elo" ]] ||
+  fail "macOS application bundle should contain an executable"
+[[ -f "$MAC_SHORTCUT/Contents/Info.plist" ]] ||
+  fail "macOS application bundle should contain Info.plist"
+grep -Fx 'Managed by the Elo installer.' \
+  "$MAC_SHORTCUT/Contents/Resources/.elo-managed" >/dev/null ||
+  fail "macOS application bundle should be marked as installer-managed"
+grep -F '<string>io.github.3nderxp.elo</string>' \
+  "$MAC_SHORTCUT/Contents/Info.plist" >/dev/null ||
+  fail "macOS application bundle should define Elo's bundle identifier"
+"$MAC_SHORTCUT/Contents/MacOS/Elo"
+sed -n '1p' "$OPEN_LOG" | grep -Fx -- '-a' >/dev/null ||
+  fail "macOS launcher should use open's application option"
+sed -n '2p' "$OPEN_LOG" | grep -Fx 'Terminal' >/dev/null ||
+  fail "macOS launcher should select Apple Terminal"
+sed -n '3p' "$OPEN_LOG" | grep -Fx "$MAC_INSTALL_DIR/current/elo.sh" >/dev/null ||
+  fail "macOS launcher should open Elo's active command"
+ELO_APPLICATIONS_DIR="$MAC_APPLICATIONS_DIR" "$PROJECT_DIR/install.sh" \
+  --source "$PROJECT_DIR" --install-dir "$MAC_INSTALL_DIR" \
+  --bin-dir "$MAC_BIN_DIR" --no-shortcut >/dev/null
+[[ ! -e "$MAC_SHORTCUT" ]] ||
+  fail "--no-shortcut should remove the installer-managed macOS application"
+rm "$FAKE_BIN/uname"
 
 printf 'ok 1 - local installation creates and updates a working command\n'
 
@@ -165,6 +288,8 @@ ELO_HOME="$SELF_HOME" "$COMMAND" instances activate alpha --yes >/dev/null
 ELO_HOME="$SELF_HOME" "$COMMAND" uninstall --yes >/dev/null
 [[ ! -e "$COMMAND" && ! -L "$COMMAND" ]] ||
   fail "self-uninstall should remove the Elo command"
+[[ ! -e "$SHORTCUT" ]] ||
+  fail "self-uninstall should remove the installer-managed shortcut"
 [[ -d "$SELF_HOME/instances/alpha" ]] ||
   fail "self-uninstall should preserve instance data by default"
 [[ -f "$SELF_MINECRAFT/mods/original.txt" ]] ||

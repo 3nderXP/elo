@@ -4,6 +4,14 @@
   <h1>Elo</h1>
 
   <p>
+    <a href="https://github.com/3nderXP/elo/stargazers"><img src="https://img.shields.io/github/stars/3nderXP/elo?style=flat-square&logo=github&label=stars" alt="GitHub stars"></a>
+    <a href="https://github.com/3nderXP/elo/releases"><img src="https://img.shields.io/github/v/release/3nderXP/elo?style=flat-square&logo=github&label=release" alt="Latest release"></a>
+    <a href="https://github.com/3nderXP/elo/releases"><img src="https://img.shields.io/github/downloads/3nderXP/elo/total?style=flat-square&logo=github&label=downloads" alt="Release downloads"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/3nderXP/elo?style=flat-square&label=license" alt="GPL-3.0 license"></a>
+    <a href="https://github.com/3nderXP"><img src="https://img.shields.io/badge/author-3nderXP-181717?style=flat-square&logo=github" alt="Author 3nderXP"></a>
+  </p>
+
+  <p>
     A terminal application for organizing Minecraft mods, resource packs,
     shaders, and configuration into separate instances.
   </p>
@@ -76,7 +84,7 @@ macOS:  ~/Library/Application Support/minecraft
 Run the official installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/3nderXP/elo/main/install.sh | bash
+curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash
 ```
 
 The installer:
@@ -84,9 +92,21 @@ The installer:
 - installs releases under `~/.local/share/elo`;
 - creates the `elo` command under `~/.local/bin`;
 - provisions a private copy of Gum for the interactive interface;
+- uses Gum to choose a detected terminal and creates a Linux or macOS application shortcut;
 - validates downloaded scripts and the Gum archive;
 - never uses `sudo` or changes the system package manager;
 - does not touch `.minecraft` or create runtime data.
+
+On the first interactive Linux or macOS installation, choose one of the detected
+terminals, provide another terminal executable, or skip the shortcut. The
+choice affects only the application-menu shortcut; `elo` remains usable from
+every terminal. For unattended installation, use `--terminal <command>` or
+`--no-shortcut`. Interactive reinstalls and updates show the terminal choice
+again; unattended runs preserve the existing choice. Use
+`--configure-shortcut` to request setup explicitly.
+
+On Linux, the shortcut is installed in the desktop application directory. On
+macOS, Elo creates `~/Applications/Elo.app` and uses Apple Terminal by default.
 
 If the installer warns that `~/.local/bin` is not in `PATH`, add this line to
 your shell configuration (`~/.bashrc`, `~/.zshrc`, or equivalent):
@@ -135,7 +155,9 @@ elo
 ```
 
 Use the arrow keys to move, Enter to select, and the interface prompts to
-confirm changes.
+confirm changes. The header shows the installed version (or `development`
+outside an installed release) in a small badge and checks GitHub for a newer
+stable release, flagging one when available.
 
 ### 3. Create an instance
 
@@ -147,10 +169,13 @@ Choose **Instances**, then **Create instance**, and provide:
 
 ### 4. Activate it
 
-Choose **Instances**, then **Activate or switch instance**, and select the
+Choose **Instances**, then **Activate instance**, and select the
 instance. Keep the recommended backup mode unless you deliberately want to
 delete existing managed directories. On first activation, Elo backs up those
 directories and connects `.minecraft` to the selected instance.
+
+To create the instance from a local Modrinth modpack instead, choose
+**Import modpack**, select the `.mrpack`, and provide an instance name.
 
 ### 5. Search and install addons
 
@@ -180,8 +205,13 @@ Removal commands always recalculate the current hash before deleting a managed
 addon.
 
 To install a result, choose **Addons**, then **Install addon**, select the
-instance, and enter the project ID or slug. You may preview the dependency plan
-with dry-run mode or continue with installation and confirmation.
+instance, then choose a provider project or local `.mrpack` file. Provider
+modpacks are downloaded through the Modrinth API. You may preview the plan with
+dry-run mode or continue with installation and confirmation. Elo recommends an
+empty instance when installing a modpack and warns when the selected instance
+already contains files.
+The local file picker starts at your home directory and supports normal folder
+navigation.
 
 The guided interface also exposes addon listing, external-file adoption, both
 removal forms, provider settings, instance reset and removal, status, updates,
@@ -198,9 +228,13 @@ elo instances create fabric-1_21 \
   --version 1.21.1 \
   --loader fabric
 
+elo instances import potato-edition "./Potato Edition.mrpack"
+
 elo instances activate fabric-1_21
 elo addons search sodium --instance fabric-1_21
 elo addons install fabric-1_21 sodium
+elo addons install fabric-1_21 fabulously-optimized
+elo addons install fabric-1_21 "./Potato Edition.mrpack"
 elo addons list fabric-1_21
 elo status
 ```
@@ -249,6 +283,7 @@ restores the original directories.
 | `elo status` | Diagnose links, backups, and the active instance |
 | `elo update` | Install the latest stable Elo release |
 | `elo uninstall` | Remove Elo while preserving instance data |
+| `elo version` (`--version`, `-v`) | Print the installed Elo version |
 | `elo help [command] [subcommand]` | Show detailed help |
 
 ### Instance commands
@@ -256,6 +291,8 @@ restores the original directories.
 | Command | Purpose |
 | --- | --- |
 | `elo instances create <name>` | Create an instance |
+| `elo instances import <name> <file.mrpack>` | Install a local Modrinth modpack |
+| `elo instances version <name> <version>` | Change version and analyze/migrate addons |
 | `elo instances activate <name>` | Activate or switch to an instance |
 | `elo instances list` | List instances, versions, loaders, and active state |
 | `elo instances reset` | Stop management and restore original directories |
@@ -268,6 +305,18 @@ elo instances create neoforge-1_21 \
   --version 1.21.1 \
   --loader neoforge
 ```
+
+Preview or perform a version migration:
+
+```bash
+elo instances version amazing-vanilla 26.1.2 --dry-run
+elo instances version amazing-vanilla 26.1.2 --migrate
+```
+
+Elo classifies compatible, updateable, unavailable, modified, colliding, and
+external addons before confirmation. Migrated files are downloaded and
+verified first; replaced files and metadata remain in a timestamped recovery
+backup under the instance's `.elo-migrations` directory.
 
 Activation uses safe backup mode by default:
 
@@ -289,7 +338,7 @@ elo instances remove neoforge-1_21 --reset
 | Command | Purpose |
 | --- | --- |
 | `elo addons search <query>` | Search provider projects |
-| `elo addons install <instance> <id-or-slug>` | Install an addon and dependencies |
+| `elo addons install <instance> <id-or-slug|file.mrpack>` | Install an addon or Modrinth modpack |
 | `elo addons list <instance>` | Report managed, modified, missing, and external files |
 | `elo addons adopt <instance> <path>` | Register an existing external file |
 | `elo addons remove <instance> <id-or-slug>` | Remove a managed addon |
@@ -376,7 +425,10 @@ elo update --version v0.4.0
 ```
 
 After a successful update, Elo retains the active and immediately previous
-releases for recovery and removes older installer-managed releases.
+releases for recovery and removes older installer-managed releases. Updating
+from System > Update Elo in the interactive interface restarts Elo in place
+afterward, so the new release is active immediately without reopening the
+interface manually.
 
 ## Uninstall Elo
 
@@ -457,6 +509,10 @@ PATH="$TEST_DIR/bin:$PATH" \
 ELO_HOME="$TEST_DIR/data" \
 "$TEST_DIR/bin/elo"
 ```
+
+A `--source` install records its version as `development` (unless `--ref` is
+also given explicitly), since a local checkout is not tied to a published
+release.
 
 After testing, remove the isolated files:
 

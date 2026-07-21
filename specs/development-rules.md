@@ -13,6 +13,10 @@
 - User-data preservation takes priority.
 - Default behavior must be reversible.
 - Each responsibility has one owning module.
+- Every change must document the affected layer(s): update the owning module's
+  function comments/API contract, the relevant user-facing README or CLI spec,
+  and tests when behavior changes. New utilities must document parameters,
+  output, and side effects next to the function.
 - Configuration and state are data, never executable code.
 - Runtime dependencies require an explicit architecture decision.
 - Business logic must not be added to `elo.sh`.

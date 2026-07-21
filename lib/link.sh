@@ -115,7 +115,7 @@ elo_prepare_destination() {
         elo_die "Backup already exists and will not be overwritten: $backup"
         return 1
       fi
-      mkdir -p -- "$ELO_BACKUP_DIR"
+      mkdir -p -- "$(dirname -- "$backup")"
       mv -- "$destination" "$backup"
       elo_state_set "$(elo_original_key "$folder")" backed_up
     else
@@ -141,6 +141,7 @@ elo_activate_instance() {
   minecraft_path="$(elo_minecraft_path)" || return
   instance_dir="$(elo_instance_dir "$name")"
   folders="$(elo_managed_folders)"
+  folders="${folders}"$'\n'"$(elo_instance_managed_paths "$name")"
 
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return
@@ -148,7 +149,7 @@ elo_activate_instance() {
     destination="$minecraft_path/$folder"
     linked="$(elo_state_get "$(elo_linked_key "$folder")" || true)"
 
-    if [[ ! -d "$source" ]]; then
+    if [[ ! -e "$source" && ! -L "$source" ]]; then
       if [[ -n "$linked" ]]; then
         elo_release_folder "$folder" "$minecraft_path" || return
       fi
@@ -272,6 +273,9 @@ elo_cmd_reset() {
     esac
   done
 
+  if [[ -n "$active" ]]; then
+    folders="${folders}"$'\n'"$(elo_instance_managed_paths "$active")"
+  fi
   for folder in $folders; do
     if [[ -n "$(elo_state_get "$(elo_linked_key "$folder")" || true)" ||
       -n "$(elo_state_get "$(elo_original_key "$folder")" || true)" ]]; then
@@ -290,6 +294,9 @@ elo_cmd_reset() {
     return 1
   }
 
+  if [[ -n "$active" ]]; then
+    folders="${folders}"$'\n'"$(elo_instance_managed_paths "$active")"
+  fi
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return
     if ! elo_release_folder "$folder" "$minecraft_path"; then
@@ -318,6 +325,9 @@ elo_cmd_status() {
   printf 'Minecraft: %s\n' "$minecraft_path"
   printf 'Active instance: %s\n' "${active:--}"
 
+  if [[ -n "$active" ]]; then
+    folders="${folders}"$'\n'"$(elo_instance_managed_paths "$active")"
+  fi
   for folder in $folders; do
     elo_validate_managed_folder "$folder" || return
     linked="$(elo_state_get "$(elo_linked_key "$folder")" || true)"

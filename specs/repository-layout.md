@@ -4,7 +4,7 @@
 elo/
 ├── install.sh
 ├── elo.sh
-├── assets/branding/{README.md,banner.png,banner-frame.png,logo.png,elo.asc}
+├── assets/branding/{README.md,banner.png,banner-frame.png,logo.png,elo.asc,shortcut-icon.png}
 ├── lib/
 ├── tests/
 ├── skills/<skill-name>/{SKILL.md,agents,references}

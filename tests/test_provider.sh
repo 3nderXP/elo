@@ -20,7 +20,7 @@ assert_absent() { [[ ! -e "$1" && ! -L "$1" ]] || fail "unexpected path: $1"; }
 cat >"$TEST_ROOT/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-url="" output="" empty_search=0 offset="" limit=""
+url="" output="" empty_search=0 offset="" limit="" game_versions=""
 printf '%s\n' "$*" >>"$ELO_TEST_CURL_ARGS_LOG"
 while (($# > 0)); do
   case "$1" in
@@ -28,6 +28,7 @@ while (($# > 0)); do
     query=no-results) empty_search=1; shift ;;
     offset=*) offset="$1"; shift ;;
     limit=*) limit="$1"; shift ;;
+    game_versions=*) game_versions="$1"; shift ;;
     http*) url="$1"; shift ;;
     *) shift ;;
   esac
@@ -41,15 +42,28 @@ case "$url" in
     fi
     ;;
   */project/sodium) printf '%s\n' '{"id":"sodium01","slug":"sodium","title":"Sodium","project_type":"mod"}' ;;
+  */project/sodium01) printf '%s\n' '{"id":"sodium01","slug":"sodium","title":"Sodium","project_type":"mod"}' ;;
   */project/fabric01) printf '%s\n' '{"id":"fabric01","slug":"fabric-api","title":"Fabric API","project_type":"mod"}' ;;
   */project/second) printf '%s\n' '{"id":"second01","slug":"second","title":"Second Mod","project_type":"mod"}' ;;
   */project/psx-core) printf '%s\n' '{"id":"shader01","slug":"psx-core","title":"PSX-Core Shader","project_type":"shader"}' ;;
-  */project/fabric01/version) printf '%s\n' '[{"id":"fabver","project_id":"fabric01","version_number":"2.0","files":[{"url":"https://cdn.test/fabric-api.jar","filename":"fabric-api.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}]' ;;
+  */project/fabric01/version)
+    if [[ "$game_versions" == *1.21.2* ]]; then
+      printf '%s\n' '[{"id":"fabver-new","project_id":"fabric01","version_number":"2.1","files":[{"url":"https://cdn.test/fabric-api-new.jar","filename":"fabric-api-new.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}]'
+    elif [[ "$game_versions" == *1.21.3* ]]; then printf '%s\n' '[]'
+    else printf '%s\n' '[{"id":"fabver","project_id":"fabric01","version_number":"2.0","files":[{"url":"https://cdn.test/fabric-api.jar","filename":"fabric-api.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}]'
+    fi ;;
   */project/second01/version) printf '%s\n' '[{"id":"secondver","project_id":"second01","version_number":"1.0","files":[{"url":"https://cdn.test/second.jar","filename":"second.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}]' ;;
   */project/shader01/version) printf '%s\n' '[{"id":"shaderver","project_id":"shader01","version_number":"0.1.6","loaders":["iris","optifine"],"files":[{"url":"https://cdn.test/psx-core.zip","filename":"psx-core.zip","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}]' ;;
-  */project/sodium01/version) printf '%s\n' '[{"id":"sodiumver","project_id":"sodium01","version_number":"1.0","files":[{"url":"https://cdn.test/sodium.jar","filename":"sodium.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}]' ;;
+  */project/sodium01/version)
+    if [[ "$game_versions" == *1.21.2* ]]; then
+      printf '%s\n' '[{"id":"sodiumver-new","project_id":"sodium01","version_number":"1.1","files":[{"url":"https://cdn.test/sodium-new.jar","filename":"sodium-new.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}]'
+    elif [[ "$game_versions" == *1.21.3* ]]; then printf '%s\n' '[]'
+    else printf '%s\n' '[{"id":"sodiumver","project_id":"sodium01","version_number":"1.0","files":[{"url":"https://cdn.test/sodium.jar","filename":"sodium.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}]'
+    fi ;;
   */version/sodiumver) printf '%s\n' '{"id":"sodiumver","project_id":"sodium01","version_number":"1.0","files":[{"url":"https://cdn.test/sodium.jar","filename":"sodium.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}' ;;
   */version/fabver) printf '%s\n' '{"id":"fabver","project_id":"fabric01","version_number":"2.0","files":[{"url":"https://cdn.test/fabric-api.jar","filename":"fabric-api.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}' ;;
+  */version/fabver-new) printf '%s\n' '{"id":"fabver-new","project_id":"fabric01","version_number":"2.1","files":[{"url":"https://cdn.test/fabric-api-new.jar","filename":"fabric-api-new.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}' ;;
+  */version/sodiumver-new) printf '%s\n' '{"id":"sodiumver-new","project_id":"sodium01","version_number":"1.1","files":[{"url":"https://cdn.test/sodium-new.jar","filename":"sodium-new.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}' ;;
   */version/secondver) printf '%s\n' '{"id":"secondver","project_id":"second01","version_number":"1.0","files":[{"url":"https://cdn.test/second.jar","filename":"second.jar","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[{"version_id":null,"project_id":"fabric01","dependency_type":"required"}]}' ;;
   */version/shaderver) printf '%s\n' '{"id":"shaderver","project_id":"shader01","version_number":"0.1.6","loaders":["iris","optifine"],"files":[{"url":"https://cdn.test/psx-core.zip","filename":"psx-core.zip","primary":true,"hashes":{"sha512":"3bad9020d8b4bc8fb6c719e6ed53a1a834276e20848fba7219d6b185bd03c2a6b6fe0d18696ebc230f36f14b02d2d065d79dcae0a36a5c12341b52106d336c11"}}],"dependencies":[]}' ;;
   *) printf 'unexpected URL: %s\n' "$url" >&2; exit 1 ;;
@@ -76,6 +90,8 @@ assert_contains "$output" "Sodium"
 assert_contains "$(cat "$ELO_TEST_SEARCH_LOG")" "limit=10 offset=0"
 output="$("$ELO" addons search no-results --type mod --instance fabric)"
 assert_contains "$output" "info: No addons found."
+"$ELO" addons search fixture-pack --type modpack --instance fabric >/dev/null
+assert_contains "$(cat "$ELO_TEST_CURL_ARGS_LOG")" "project_type:modpack"
 
 : >"$ELO_TEST_CURL_ARGS_LOG"
 "$ELO" addons search psx-core --type shader --instance fabric >/dev/null
@@ -159,6 +175,31 @@ assert_file "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
 "$ELO" addons remove orphan second --remove-orphans --yes >/dev/null
 assert_absent "$ELO_HOME/instances/orphan/mods/second.jar"
 assert_absent "$ELO_HOME/instances/orphan/mods/fabric-api.jar"
+
+"$ELO" instances create migration --version 1.21.1 --loader fabric >/dev/null
+"$ELO" addons install migration sodium --yes >/dev/null
+output="$("$ELO" instances version migration 1.21.2 --migrate --dry-run 2>&1)"
+assert_contains "$output" "Minecraft version upgrade: 1.21.1 -> 1.21.2"
+assert_contains "$output" "update"
+assert_file "$ELO_HOME/instances/migration/mods/sodium.jar"
+assert_contains "$(cat "$ELO_HOME/instances/migration/instance.conf")" "MINECRAFT_VERSION=1.21.1"
+
+"$ELO" instances version migration 1.21.2 --migrate --yes >/dev/null
+assert_absent "$ELO_HOME/instances/migration/mods/sodium.jar"
+assert_absent "$ELO_HOME/instances/migration/mods/fabric-api.jar"
+assert_file "$ELO_HOME/instances/migration/mods/sodium-new.jar"
+assert_file "$ELO_HOME/instances/migration/mods/fabric-api-new.jar"
+assert_contains "$(cat "$ELO_HOME/instances/migration/instance.conf")" "MINECRAFT_VERSION=1.21.2"
+assert_contains "$(cat "$ELO_HOME/instances/migration/addons.conf")" "modrinth:sodium01_version_id=sodiumver-new"
+find "$ELO_HOME/instances/migration/.elo-migrations" -type f -name sodium.jar | grep . >/dev/null ||
+  fail "migration should back up replaced addons"
+
+output="$("$ELO" instances version migration 1.21.3 --migrate --dry-run 2>&1)"
+assert_contains "$output" "unavailable"
+printf 'modified\n' >"$ELO_HOME/instances/migration/mods/sodium-new.jar"
+output="$("$ELO" instances version migration 1.21.3 --migrate --dry-run 2>&1)"
+assert_contains "$output" "modified"
+assert_contains "$(cat "$ELO_HOME/instances/migration/instance.conf")" "MINECRAFT_VERSION=1.21.2"
 
 "$ELO" instances create cache-test --version 1.21.1 --loader fabric >/dev/null
 "$ELO" addons install cache-test sodium --yes >/dev/null

@@ -34,6 +34,8 @@ RESPONSES="$TEST_ROOT/responses"
 CALLS="$TEST_ROOT/calls"
 MENUS="$TEST_ROOT/menus"
 GUM_CALLS="$TEST_ROOT/gum-calls"
+RESTARTS="$TEST_ROOT/restarts"
+: >"$RESTARTS"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -85,6 +87,8 @@ elo_test_gum() {
       cat -- "$file"
       ;;
     file) elo_test_response ;;
+    filter) elo_test_response ;;
+    pager) cat >/dev/null ;;
   esac
 }
 
@@ -142,13 +146,19 @@ elo_test_record() {
 }
 
 elo_cmd_search() { elo_test_record search "$@"; }
+elo_cmd_import_mrpack() { elo_test_record import-mrpack "$@"; }
+elo_cmd_import() { elo_test_record import "$@"; }
 elo_search_page() {
   local provider="$1" query="$2" type="$3" instance="$4" limit="$5" offset="$6"
   if [[ "$offset" == "0" ]]; then
     elo_test_record search "$provider" "$query" "$type" "$instance" "$limit" "$offset"
   fi
   printf '%s\n' "$offset" >>"$TEST_ROOT/search-offsets"
-  printf '60\nsodium01\tsodium\tmod\tSodium\t42\n'
+  if [[ "$query" == "no-results" ]]; then
+    printf '0\n'
+    return
+  fi
+  printf '60\nsodium01\ta-modrinth-slug-longer-than-twenty-characters\tmod\tSodium\t42\n'
 }
 elo_cmd_install() { elo_test_record install "$@"; }
 elo_cmd_adopt() { elo_test_record adopt "$@"; }
@@ -161,6 +171,7 @@ elo_cmd_provider() {
   fi
 }
 elo_cmd_update() { elo_test_record update "$@"; }
+elo_self_restart() { printf 'restarted\n' >>"$RESTARTS"; }
 elo_cmd_uninstall() { elo_test_record uninstall "$@"; }
 elo_cmd_list() {
   elo_test_record instances-list "$@"
@@ -187,23 +198,53 @@ elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Back
 elo_ui_search >/dev/null
 assert_call $'search\nmodrinth\nsodium\nmod\nalpha\n25\n0'
 assert_contains "$TEST_ROOT/search-offsets" 0
+assert_contains "$ELO_UI_CACHE_DIR/render-table.tsv" "a-modrinth-slug-longer-than-twenty-characters"
+
+elo_ui_search_page_loader 0 25 modrinth no-results mod alpha \
+  >"$ELO_UI_CACHE_DIR/empty-search.tsv"
+elo_ui_render_table "$ELO_UI_CACHE_DIR/empty-search.tsv" 1 tsv >/dev/null
+assert_contains "$ELO_UI_CACHE_DIR/render-table.tsv" $'-\t-\t-\tNo addons found.\t-'
+
+printf 'unavailable\tmodrinth:vulkanmod\tVulkanMod\t1.0\t-\tmod\tvulkan.jar\t-\t{}\n' \
+  >"$ELO_UI_CACHE_DIR/migration-plan.tsv"
+elo_test_queue "modrinth:vulkanmod | unavailable | VulkanMod"
+selected="$(elo_ui_migration_select_removals "$ELO_UI_CACHE_DIR/migration-plan.tsv")"
+[[ "$selected" == "modrinth:vulkanmod" ]] || fail "migration checklist should return selected addon keys"
+assert_contains "$GUM_CALLS" "filter --no-limit --height 20 --show-help"
+assert_contains "$GUM_CALLS" "type to filter"
 
 : >"$TEST_ROOT/search-offsets"
 elo_test_queue sodium Mod alpha "Use preferred (modrinth)" 25 Last Back
 elo_ui_search >/dev/null
 assert_contains "$TEST_ROOT/search-offsets" 50
 
-elo_test_queue alpha sodium "Use preferred (modrinth)" "Preview only (dry run)"
+elo_test_queue alpha "Provider project" sodium "Use preferred (modrinth)" "Preview only (dry run)"
 elo_ui_install
 assert_call $'install\nalpha\nsodium\n--dry-run'
 
-elo_test_queue alpha psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
+elo_test_queue alpha "Provider project" psx-core "Use preferred (modrinth)" Iris "Preview only (dry run)"
 elo_ui_install
 assert_call $'install\nalpha\npsx-core\n--platform\niris\n--dry-run'
+
+elo_test_queue alpha "Local .mrpack file" "$TEST_ROOT/example.mrpack" "Preview only (dry run)"
+elo_ui_install
+assert_call $'install\nalpha\n'"$TEST_ROOT"$'/example.mrpack\n--dry-run'
+assert_contains "$GUM_CALLS" "file $HOME --file"
+assert_contains "$GUM_CALLS" "--height 0 --show-help --all"
+assert_contains "$GUM_CALLS" "→ enter folder"
 
 elo_test_queue alpha "Replace existing directories permanently"
 elo_ui_activate
 assert_call $'activate\nalpha\n--mode\nreplace'
+
+elo_test_queue "Local .mrpack file" "$TEST_ROOT/example.mrpack" imported-pack
+elo_ui_import_mrpack
+assert_call $'import-mrpack\nimported-pack\n'"$TEST_ROOT"$'/example.mrpack'
+assert_contains "$GUM_CALLS" "file $HOME --file"
+
+elo_test_queue "Provider project" fabulously-optimized "Use preferred (modrinth)" imported-from-provider
+elo_ui_import_mrpack
+assert_call $'import\nimported-from-provider\nfabulously-optimized'
 
 elo_test_queue alpha Mods "$ELO_INSTANCES_DIR/alpha/mods/manual.jar"
 elo_ui_adopt
@@ -221,6 +262,12 @@ assert_call $'provider\nset\nmodrinth'
 elo_test_queue "Specific version" v1.2.3
 elo_ui_update
 assert_call $'update\n--version\nv1.2.3'
+[[ "$(wc -l <"$RESTARTS")" == 1 ]] || fail "successful update did not restart Elo"
+
+: >"$RESTARTS"
+elo_test_queue Back
+elo_ui_update
+[[ ! -s "$RESTARTS" ]] || fail "cancelling update should not restart Elo"
 
 elo_test_queue "Uninstall and permanently delete all data"
 elo_ui_uninstall
@@ -296,11 +343,11 @@ elo_test_queue Instances Back
 elo_ui_help
 
 for label in \
-  "Create instance" "Activate or switch instance" "Reset managed links" \
+  "Create instance" "Import modpack" "Activate instance" "Reset managed links" \
   "Search addons" "Install addon" "Adopt external addon" "Remove addon" \
   "Provider settings" "Status" "Update Elo" "Uninstall Elo" \
   "Search Install List Adopt Remove Provider" \
-  "Create Activate Reset List Remove"; do
+  "Create Import Activate Reset List Remove"; do
   assert_contains "$MENUS" "$label"
 done
 

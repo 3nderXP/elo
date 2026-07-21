@@ -82,6 +82,7 @@ intentional.
 bash -n install.sh elo.sh lib/*.sh tests/*.sh
 ./tests/test_elo.sh
 ./tests/test_provider.sh
+./tests/test_mrpack.sh
 ./tests/test_install.sh
 ./tests/test_interactive.sh
 ```

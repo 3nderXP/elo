@@ -23,11 +23,12 @@ Usage:
 
 Commands:
   init        Configure the .minecraft directory to manage
-  instances   Create, activate, list, reset, or remove instances
+  instances   Create, import, change, activate, list, reset, or remove instances
   addons      Search, install, list, adopt, or remove addons
   status      Diagnose the current managed state
   update      Install a stable or selected Elo release
   uninstall   Uninstall Elo and optionally delete its data
+  version     Show the installed Elo version (alias: --version, -v)
   help        Show general or command-specific help
 
 Run without a command to open the Gum-powered interactive interface.
@@ -63,6 +64,8 @@ elo_help_instances() {
   local action="${1:-}"
   case "$action" in
     create) elo_help_instances_create ;;
+    import) elo_help_instances_import ;;
+    version) elo_help_instances_version ;;
     activate) elo_help_instances_activate ;;
     reset) elo_help_instances_reset ;;
     list) elo_help_instances_list ;;
@@ -73,6 +76,8 @@ Usage:
 
 Commands:
   create     Create an empty instance
+  import     Install a local Modrinth .mrpack as a new instance
+  version    Change Minecraft version and optionally migrate addons
   activate   Activate or switch to an instance
   reset      Stop management and restore original directories
   list       List existing instances
@@ -85,6 +90,18 @@ EOF
       ;;
     *) elo_error "No help is available for instances command: $action"; return 2 ;;
   esac
+}
+
+elo_help_instances_import() {
+  cat <<'EOF'
+Usage:
+  elo instances import <name> <file.mrpack> [--yes]
+
+Create an instance from a local Modrinth modpack. Elo validates archive paths,
+download hosts, file sizes, and SHA-512 hashes before publishing the instance.
+Client overrides inside managed folders are applied. Elo records but does not
+install the Minecraft loader declared by the pack.
+EOF
 }
 
 elo_help_instances_create() {
@@ -105,6 +122,23 @@ Usage:
 Activate an instance or switch from the current one. Backup mode preserves
 original directories and is the default. Replace mode permanently removes
 real destination directories after confirmation.
+EOF
+}
+
+elo_help_instances_version() {
+  cat <<'EOF'
+Usage:
+  elo instances version <name> <version> [--migrate] [--remove-incompatible] [--dry-run] [--yes]
+
+Analyze every managed addon against a new Minecraft version before changing
+the instance. The report marks addons as keep, update, restore, unavailable,
+modified, collision, unmanaged, blocked, or external. --dry-run changes nothing. --migrate
+downloads and verifies compatible replacements before changing files.
+--remove-incompatible moves verified unavailable addons into the migration
+backup; modified files and collisions are always kept for manual review.
+
+Without --migrate, addon files stay unchanged after a compatibility warning.
+Changing versions can break startup, worlds, configs, and modpack guarantees.
 EOF
 }
 
@@ -172,7 +206,7 @@ elo_help_addons_search() {
 Usage:
   elo addons search <query> [--type <type>] [--instance <name>] [--provider <provider>] [--limit <number>]
 
-Search public provider projects. Types: mod, resourcepack, shader. When no
+Search public provider projects. Types: mod, modpack, resourcepack, shader. When no
 instance is given, the active instance supplies compatibility filters. Its mod
 loader filters only mod results; shaders use the game version without inheriting
 Fabric, Forge, NeoForge, or Quilt.
@@ -182,12 +216,14 @@ EOF
 elo_help_addons_install() {
   cat <<'EOF'
 Usage:
-  elo addons install <instance> <id-or-slug> [--provider <provider>] [--platform iris|optifine] [--dry-run] [--yes]
+  elo addons install <instance> <id-or-slug|file.mrpack> [--provider <provider>] [--platform iris|optifine] [--dry-run] [--yes]
 
 Resolve a compatible addon and required dependencies. Existing matching files
 are verified and reused; different content is never overwritten. Shader
 installation requires --platform iris or --platform optifine for an explicit
-per-installation compatibility choice.
+per-installation compatibility choice. Modpack projects are downloaded through
+the provider API; local .mrpack files use the same validated pipeline. A
+non-empty target instance produces a conflict warning.
 EOF
 }
 
@@ -249,6 +285,17 @@ Install and activate the latest stable or an exact SemVer Elo release.
 EOF
 }
 
+elo_help_version() {
+  cat <<'EOF'
+Usage:
+  elo version
+  elo --version
+  elo -v
+
+Print the installed Elo version.
+EOF
+}
+
 elo_help_uninstall() {
   cat <<'EOF'
 Usage:
@@ -279,6 +326,7 @@ elo_help_command() {
     status) elo_help_status ;;
     update) elo_help_update ;;
     uninstall) elo_help_uninstall ;;
+    version | --version | -v) elo_help_version ;;
     help) elo_help_help ;;
     *) elo_error "No help is available for command: $command"; elo_help_general >&2; return 2 ;;
   esac

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+ELO_ORIGINAL_ARGV0="$0"
+
 ELO_ENTRYPOINT="${BASH_SOURCE[0]}"
 ELO_COMMAND_DIR="$(cd -- "$(dirname -- "$ELO_ENTRYPOINT")" && pwd -P)"
 while [[ -L "$ELO_ENTRYPOINT" ]]; do
@@ -34,6 +36,8 @@ source "$ELO_SCRIPT_DIR/lib/self.sh"
 source "$ELO_SCRIPT_DIR/lib/provider_modrinth.sh"
 # shellcheck source=lib/provider.sh
 source "$ELO_SCRIPT_DIR/lib/provider.sh"
+# shellcheck source=lib/mrpack.sh
+source "$ELO_SCRIPT_DIR/lib/mrpack.sh"
 # shellcheck source=lib/interactive.sh
 source "$ELO_SCRIPT_DIR/lib/interactive.sh"
 
@@ -46,6 +50,8 @@ elo_dispatch_instances() {
   fi
   case "$action" in
     create) elo_cmd_new "$@" ;;
+    import) elo_cmd_import "$@" ;;
+    version) elo_cmd_instance_version "$@" ;;
     activate) elo_cmd_link "$@" ;;
     reset) elo_cmd_reset "$@" ;;
     list) elo_cmd_list "$@" ;;
@@ -97,6 +103,7 @@ main() {
     status) elo_cmd_status "$@" ;;
     update) elo_cmd_update "$@" ;;
     uninstall) elo_cmd_uninstall "$@" ;;
+    version | --version | -v) elo_cmd_version "$@" ;;
     help) elo_help_command "$@" ;;
     --help | -h) elo_help_general ;;
     *)

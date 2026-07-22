@@ -166,6 +166,23 @@ install_copy_local_files() {
   done
 }
 
+install_resolve_latest_ref() {
+  local effective_url tag
+
+  command -v curl >/dev/null 2>&1 ||
+    install_die "curl is required for remote installation."
+
+  effective_url="$(
+    curl -fsSL -o /dev/null -w '%{url_effective}\n' \
+      "https://github.com/$ELO_REPOSITORY/releases/latest"
+  )" || install_die "Failed to resolve the latest stable release."
+  tag="${effective_url##*/tag/}"
+  [[ "$tag" != "$effective_url" ]] ||
+    install_die "GitHub did not return a stable release."
+  ELO_REF="$tag"
+  ELO_REF_EXPLICIT=1
+}
+
 install_download_files() {
   local stage="$1"
   local base_url file
@@ -738,6 +755,7 @@ main() {
   if [[ -n "$ELO_SOURCE_DIR" ]]; then
     install_copy_local_files "$ELO_INSTALL_STAGE"
   else
+    ((ELO_REF_EXPLICIT == 1)) || install_resolve_latest_ref
     install_download_files "$ELO_INSTALL_STAGE"
   fi
 

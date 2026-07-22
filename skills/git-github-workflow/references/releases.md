@@ -11,3 +11,14 @@ release** flow. Use the same value for tag and title, such as `v0.1.0`.
 Published tags are immutable. Fix a release with a new version. Install an
 exact version by fetching `install.sh` from that tag and passing the same tag
 through `--ref`.
+
+## Suffix convention
+
+A `-rc.N` suffix always marks a GitHub **pre-release**; a plain `vX.Y.Z` tag
+(no suffix) is always marked **Latest**.
+
+Small, isolated PATCH releases ship straight to a plain `vX.Y.Z` tag — no
+`-rc` needed. MINOR releases (broader surface) go through one or more
+`vX.Y.0-rc.N` pre-releases first, then get promoted to a plain `vX.Y.0` once
+validated. Judge MAJOR releases the same way as MINOR, scaled to their larger
+risk.

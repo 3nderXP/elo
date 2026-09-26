@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elo — Minecraft instance manager</title>
+<meta name="description" data-i18n-content="meta.desc" content="Elo keeps each Minecraft setup in its own directory and switches between them by relinking. Your launcher keeps working; Elo takes over the mods, resource packs, shaders and config.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#18211B">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Elo — Minecraft instance manager">
+<meta property="og:description" data-i18n-content="meta.desc" content="Give every Minecraft setup its own folder. Switch setups by relinking, next to the launcher you already use.">
+<meta property="og:image" content="assets/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/img/favicon.png" sizes="32x32">
+<link rel="icon" href="assets/img/icon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap topbar__inner">
+    <a class="brand" href="#top">
+      <span class="brand__mark" aria-hidden="true">&gt;</span>
+      <span class="brand__name">elo</span>
+      <span class="brand__ver" data-repo-version>v0.6.1</span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <span aria-hidden="true"></span>
+      <em data-i18n="nav.menu">menu</em>
+    </button>
+
+    <nav class="nav" id="site-nav" aria-label="Main">
+      <a href="#why"><span class="nav__num">01</span><span data-i18n="nav.why">why</span></a>
+      <a href="#example"><span class="nav__num">02</span><span data-i18n="nav.example">example</span></a>
+      <a href="#instances"><span class="nav__num">03</span><span data-i18n="nav.instances">instances</span></a>
+      <a href="#safety"><span class="nav__num">04</span><span data-i18n="nav.safety">safety</span></a>
+      <a href="#requirements"><span class="nav__num">05</span><span data-i18n="nav.requirements">requirements</span></a>
+      <a href="#faq"><span class="nav__num">06</span><span data-i18n="nav.faq">faq</span></a>
+      <a class="nav__ext" href="https://github.com/3nderXP/elo" target="_blank" rel="noopener">github ↗</a>
+      <span class="lang" role="group" data-i18n-aria-label="nav.lang_aria">
+        <a href="#" data-lang="en" class="is-active">en</a>
+        <a href="#" data-lang="pt-BR">pt-BR</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ────────────────────────────── hero ────────────────────────────── -->
+  <section class="hero" id="top">
+    <span class="grid-fade" aria-hidden="true"></span>
+    <div class="wrap hero__grid">
+
+      <div class="hero__copy">
+        <p class="kicker" data-i18n="hero.kicker">// minecraft instance manager</p>
+
+        <pre class="ascii" aria-label="Elo" data-ascii-logo>           /$$          
+          | $$          
+  /$$$$$$ | $$  /$$$$$$ 
+ /$$__  $$| $$ /$$__  $$
+| $$$$$$$$| $$| $$  \ $$
+| $$_____/| $$| $$  | $$
+|  $$$$$$$| $$|  $$$$$$/
+ \_______/|__/ \______/ 
+                        </pre>
+
+        <h1 class="hero__title" data-i18n="hero.t1">Every setup gets<br>its own folder.</h1>
+
+        <p class="lede" data-i18n="hero.lede">The vanilla launcher and most legacy launchers don't manage modpacks at all — they just point at one <code>.minecraft</code>. Prism, PolyMC and MultiMC do, but they lock you into their profile system. Elo works differently: it points your existing <code>.minecraft</code> at a different set of mods, resource packs, shaders and config, so moving between a heavy modpack and a clean vanilla world is a relink instead of another multi-gigabyte copy. No new launcher, no new Java, no duplicated worlds — and no profile lock-in.</p>
+
+        <div class="block">
+          <p class="block__label" data-i18n="hero.install">install</p>
+          <div class="block__row">
+            <code class="block__cmd" data-copy="curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash">curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash</code>
+            <button class="copy" type="button" data-copy data-i18n-aria-label="copy.install" aria-label="Copy install command">
+              <span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.done">copied</span>
+            </button>
+          </div>
+          <p class="block__foot" data-i18n="hero.foot">Needs bash, curl and jq. Never asks for <code>sudo</code>, never touches your package manager, and never writes to <code>.minecraft</code> before you tell it to.</p>
+        </div>
+
+        <p class="hero__meta">
+          <a href="https://github.com/3nderXP/elo" target="_blank" rel="noopener">3nderXP/elo</a>
+          <span aria-hidden="true">·</span> GPL-3.0
+          <span aria-hidden="true">·</span> <span data-i18n="hero.sys">linux, macos</span>
+          <span aria-hidden="true">·</span> <span data-i18n="hero.data">>data lives in <code>~/.elo</code></span>
+        </p>
+      </div>
+
+      <div class="hero__demo">
+        <div class="tui" data-tui>
+          <div class="term">
+            <span class="scanlines" aria-hidden="true"></span>
+            <div class="term__bar">
+              <span class="term__title">elo</span>
+              <span class="term__size">80×24</span>
+            </div>
+            <div class="term__body">
+              <div class="term__row">
+                <span class="ver" data-repo-version>v0.6.1</span>
+                <span class="term__status" data-release-status></span>
+              </div>
+
+              <div class="term__logo">
+                <pre class="ascii ascii--sm" data-ascii-logo aria-hidden="true">           /$$          
+          | $$          
+  /$$$$$$ | $$  /$$$$$$ 
+ /$$__  $$| $$ /$$__  $$
+| $$$$$$$$| $$| $$  \ $$
+| $$_____/| $$| $$  | $$
+|  $$$$$$$| $$|  $$$$$$/
+ \_______/|__/ \______/ 
+                        </pre>
+                <p class="term__sub" data-i18n="tui.subtitle">Minecraft instance manager</p>
+              </div>
+
+              <p class="term__ok" data-i18n="tui.active">Active instance: cool-mine</p>
+
+              <p class="term__cmd">
+                <span class="prompt" aria-hidden="true">$</span>
+                <span data-tui-cmd>elo</span><span class="tui__caret" aria-hidden="true"></span>
+              </p>
+
+              <div class="tui__screen" data-tui-screen tabindex="0">
+                <p class="tui__title" data-tui-title hidden></p>
+                <ul class="menu" data-tui-menu role="listbox" aria-label="Elo menu" data-i18n-aria-label="tui.listbox" hidden>
+                  <li class="menu__item is-selected" role="option" aria-selected="true" id="tui-o0">Instances</li>
+                  <li class="menu__item" role="option" aria-selected="false" id="tui-o1">Addons</li>
+                  <li class="menu__item" role="option" aria-selected="false" id="tui-o2">System</li>
+                  <li class="menu__item" role="option" aria-selected="false" id="tui-o3">Help</li>
+                  <li class="menu__item" role="option" aria-selected="false" id="tui-o4">Exit</li>
+                </ul>
+                <pre class="term__out" data-tui-out hidden></pre>
+              </div>
+
+              <p class="term__hint" data-i18n="tui.hint">↑↓ move<span aria-hidden="true"> · </span>↵ select<span aria-hidden="true"> · </span>esc back</p>
+            </div>
+          </div>
+
+          <div class="tui__ctrl">
+            <span class="tui__keys" aria-hidden="true">↑↓ ↵ esc</span>
+            <span class="tui__state" data-tui-state data-i18n="tui.replay_hint">type a command — this terminal is live</span>
+            <button class="copy tui__replay" type="button" data-tui-replay data-i18n="tui.replay">replay</button>
+          </div>
+
+          <p class="vh" aria-live="polite" data-tui-live></p>
+          <p class="caption" data-i18n="tui.caption">This is the real menu, and the real output it produces. Type <code>elo</code>, press enter, and drive it with the arrow keys.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ────────────────────────────── 01 why ───────────────────────────── -->
+  <section class="sec" id="why">
+    <span class="grid-fade grid-fade--left" aria-hidden="true"></span>
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">01</p>
+        <p class="sec__label" data-i18n="sec.why">why</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="why.title">A launcher manages the game. Elo manages what is inside the folder.</h2>
+        <p class="lede" data-i18n="why.lede">Both jobs matter and they do not overlap. Elo never installs Java, never picks a Minecraft version, and never asks you to move your worlds into a launcher profile. It works on the content your launcher already reads.</p>
+
+        <dl class="defs">
+          <div class="def">
+            <dt data-i18n="why.d1.t">Works with your launcher</dt>
+            <dd data-i18n="why.d1.d">The vanilla launcher and most legacy launchers don't manage modpacks — Elo adds that without replacing your launcher. Prism, PolyMC and MultiMC manage modpacks via profiles; Elo works at the content layer instead, so you keep your launcher and your profiles, and just swap the folder contents. Your <code>.minecraft</code> stays exactly where it is, and only the folders inside it become links.</dd>
+          </div>
+          <div class="def">
+            <dt data-i18n="why.d2.t">Owns content, nothing else</dt>
+            <dd data-i18n="why.d2.d">Mods, resource packs, shaders, config and saves. Java, Minecraft versions, accounts and the game itself stay entirely your launcher's business.</dd>
+          </div>
+          <div class="def">
+            <dt data-i18n="why.d3.t">Switching is a relink</dt>
+            <dd data-i18n="why.d3.d">Changing setups moves five symlinks. No copying, no duplicated worlds, no waiting on gigabytes to finish duplicating.</dd>
+          </div>
+          <div class="def">
+            <dt data-i18n="why.d4.t">Knows if a file is still original</dt>
+            <dd data-i18n="why.d4.d">Every managed file is verified by SHA-512, so a mod you edited by hand is reported as modified instead of being silently replaced.</dd>
+          </div>
+          <div class="def">
+            <dt data-i18n="why.d5.t">Refuses instead of overwriting</dt>
+            <dd data-i18n="why.d5.d">A name collision, an unknown symlink or a mismatched hash stops the command and tells you what it found.</dd>
+          </div>
+          <div class="def">
+            <dt data-i18n="why.d6.t">Same engine, two front-ends</dt>
+            <dd data-i18n="why.d6.d">The guided menu and the command line call the same handlers, with the same checks and the same exit codes.</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 02 example ─────────────────────────── -->
+  <section class="sec sec--rule" id="example">
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">02</p>
+        <p class="sec__label" data-i18n="sec.example">example</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="ex.title">Or drive it from a script</h2>
+        <p class="lede" data-i18n="ex.lede">The menu is not a separate product with logic of its own. Every entry is a real command, so anything you can click also fits in a cron job, a modpack script or a Makefile.</p>
+
+        <div class="session">
+          <div class="term term--flat term--fit">
+            <div class="term__bar">
+              <span class="term__title">session</span>
+              <span class="term__size">bash</span>
+            </div>
+            <div class="term__body">
+<pre class="out"><span class="prompt">$</span> elo init --minecraft-path <span class="arg">"$HOME/.minecraft"</span>
+<span class="prompt">$</span> elo instances create cool-mine <span class="flag">\</span>
+    <span class="flag">--version</span> 1.21.1 <span class="flag">--loader</span> fabric
+<span class="prompt">$</span> elo addons install cool-mine sodium
+<span class="prompt">$</span> elo instances activate cool-mine
+<span class="prompt">$</span> elo status</pre>
+              <ul class="alt__list">
+                <li>
+                  <code data-copy="elo instances create cool-mine --version 1.21.1 --loader fabric">elo instances create cool-mine --version 1.21.1 --loader fabric</code>
+                  <button class="copy copy--row" type="button" data-copy="elo instances create cool-mine --version 1.21.1 --loader fabric" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
+                </li>
+                <li>
+                  <code data-copy="elo addons install cool-mine sodium">elo addons install cool-mine sodium</code>
+                  <button class="copy copy--row" type="button" data-copy="elo addons install cool-mine sodium" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
+                </li>
+                <li>
+                  <code data-copy="elo instances activate cool-mine">elo instances activate cool-mine</code>
+                  <button class="copy copy--row" type="button" data-copy="elo instances activate cool-mine" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <p class="note" data-i18n="ex.note">Commands that change something ask first. <code>--yes</code> is the deliberate opt-out for automation, and <code>--dry-run</code> shows you the whole plan before a single file is written.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────── 03 instances ────────────────────────── -->
+  <section class="sec sec--rule" id="instances">
+    <span class="grid-fade grid-fade--center" aria-hidden="true"></span>
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">03</p>
+        <p class="sec__label" data-i18n="sec.instances">instances</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="in.title">Switching is a relink, not a copy</h2>
+        <p class="lede" data-i18n="in.lede">Elo keeps every setup under <code>~/.elo</code>. The active one is exposed inside your existing <code>.minecraft</code> through links that Elo created, and can prove it created.</p>
+
+        <div class="diagram">
+          <div>
+            <p class="diagram__title">~/.elo/instances/</p>
+<pre class="tree">~/.elo/
+├── config.conf
+├── state.conf
+├── backups/original/
+└── instances/
+    └── cool-mine/
+        ├── instance.conf
+        ├── addons.conf
+        ├── mods/
+        ├── resourcepacks/
+        ├── shaderpacks/
+        └── config/</pre>
+          </div>
+
+          <p class="diagram__link" aria-hidden="true"><span data-i18n="in.symlink">symlink</span></p>
+
+          <div>
+            <p class="diagram__title">~/.minecraft/</p>
+<pre class="tree">~/.minecraft/
+├── mods           → cool-mine/mods
+├── resourcepacks  → cool-mine/…
+├── shaderpacks    → cool-mine/…
+├── config         → cool-mine/…
+└── saves          → cool-mine/…
+
+<span data-i18n="in.diagram.note"># originals moved once to
+# backups/original/</span></pre>
+          </div>
+        </div>
+
+        <ol class="steps">
+          <li><b data-i18n="in.s1.t">create</b><span data-i18n="in.s1.d">Pick a name, a Minecraft version and a loader: fabric, neoforge, forge, quilt or vanilla. Or import a <code>.mrpack</code> you already have.</span></li>
+          <li><b data-i18n="in.s2.t">activate</b><span data-i18n="in.s2.d">Safe mode moves your real folders into the backup once, then puts links in their place.</span></li>
+          <li><b data-i18n="in.s3.t">switch</b><span data-i18n="in.s3.d">Changing the active instance only moves links. Nothing is copied between instances.</span></li>
+          <li><b data-i18n="in.s4.t">reset</b><span data-i18n="in.s4.d">Removes Elo's links and hands your originals back. A link that does not match what Elo created is never deleted.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 04 safety ─────────────────────────── -->
+  <section class="sec sec--rule" id="safety">
+    <span class="grid-fade grid-fade--edge" aria-hidden="true"></span>
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">04</p>
+        <p class="sec__label" data-i18n="sec.safety">safety</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="sa.title">Your Minecraft folder is your data, not Elo's</h2>
+        <p class="lede" data-i18n="sa.lede">Elo never destroys something it cannot put back. Every destructive path has a reversible counterpart, and the reversible one is what runs by default.</p>
+
+        <ul class="guarantees">
+          <li data-i18n="sa.g1">Your original folders are moved aside <b>once</b>, and never overwritten.</li>
+          <li data-i18n="sa.g2">Symlinks Elo does not own are reported, never removed.</li>
+          <li data-i18n="sa.g3">Every managed addon is verified by SHA-512 before it is reused and before it is removed.</li>
+          <li data-i18n="sa.g4">A file that already exists with a different hash stops the install as a <b>collision</b>, instead of being overwritten.</li>
+          <li data-i18n="sa.g5">Removing a modified file requires you to name it explicitly with <code>--file</code>.</li>
+          <li data-i18n="sa.g6">Commands that change something ask first. <code>--yes</code> is the only way past that, and you have to type it.</li>
+          <li data-i18n="sa.g7"><code>uninstall --purge</code> refuses paths like <code>/</code> and <code>$HOME</code>.</li>
+          <li data-i18n="sa.g8">Uninstalling keeps <code>~/.elo</code> by default, so your instances survive.</li>
+        </ul>
+
+        <figure class="figure">
+          <figcaption class="figure__label" data-i18n="sa.fig.label">elo status — what every managed folder is doing right now</figcaption>
+          <div class="term term--flat term--fit">
+            <div class="term__bar">
+              <span class="term__title">elo status</span>
+              <span class="term__size">linked</span>
+            </div>
+            <div class="term__body">
+<pre class="out">Minecraft: ~/.minecraft
+Active instance: cool-mine
+
+FOLDER           LINK                 ORIGINAL     STATE
+mods             cool-mine          absent       ok
+resourcepacks    cool-mine          absent       ok
+shaderpacks      cool-mine          absent       ok
+config           cool-mine          backed_up    ok
+saves            cool-mine          backed_up    ok</pre>
+            </div>
+          </div>
+          <p class="figure__note" data-i18n="sa.fig.note">Five managed folders, each one accounted for. <code>backed_up</code> means your original data is still in <code>~/.elo/backups/original</code>, ready for <code>elo instances reset</code>. The interactive menu renders the same table through Gum, where a folder can also come back as <code>broken link</code>, <code>divergent link</code>, <code>missing link</code>, <code>instance mismatch</code>, <code>external symlink</code>, <code>real directory</code> or <code>unmanaged</code>.</p>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────── 05 requirements ──────────────────────── -->
+  <section class="sec sec--rule" id="requirements">
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">05</p>
+        <p class="sec__label" data-i18n="sec.requirements">requirements</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="rq.title">Bring your own Minecraft folder</h2>
+        <p class="lede" data-i18n="rq.lede">Elo does not install Minecraft, Java, mod loaders or launcher profiles. Set up the version and loader you want the way you already do, then point Elo at the result.</p>
+
+        <dl class="specs">
+          <div class="spec">
+            <dt data-i18n="rq.s1.t">systems</dt>
+            <dd data-i18n="rq.s1.d">Linux and macOS. Native Windows is not supported.</dd>
+          </div>
+          <div class="spec">
+            <dt data-i18n="rq.s2.t">dependencies</dt>
+            <dd data-i18n="rq.s2.d"><code>bash</code> <code>curl</code> <code>jq</code> <code>tar</code> <code>sha256sum</code> or <code>shasum</code>. Gum is downloaded privately by the installer and removed with Elo.</dd>
+          </div>
+          <div class="spec">
+            <dt data-i18n="rq.s3.t">install path</dt>
+            <dd data-i18n="rq.s3.d"><code>~/.local/share/elo</code> for releases, <code>~/.local/bin/elo</code> for the command.</dd>
+          </div>
+          <div class="spec">
+            <dt>minecraft — linux</dt>
+            <dd><code>~/.minecraft</code></dd>
+          </div>
+          <div class="spec">
+            <dt>minecraft — macos</dt>
+            <dd><code>~/Library/Application Support/minecraft</code></dd>
+          </div>
+          <div class="spec">
+            <dt data-i18n="rq.s6.t">providers</dt>
+            <dd data-i18n="rq.s6.d">Modrinth, the only one so far. One <code>.minecraft</code> directory at a time.</dd>
+          </div>
+        </dl>
+
+        <p class="note" data-i18n="rq.note">If <code>~/.local/bin</code> is not in your <code>PATH</code>, add <code>export PATH="$HOME/.local/bin:$PATH"</code> to your shell configuration, then run <code>elo --help</code> to confirm.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────────── 06 faq ───────────────────────────── -->
+  <section class="sec sec--rule" id="faq">
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">06</p>
+        <p class="sec__label" data-i18n="sec.faq">faq</p>
+      </aside>
+
+      <div class="sec__body">
+        <h2 data-i18n="fq.title">Short answers</h2>
+
+        <div class="faq">
+          <details class="qa">
+            <summary data-i18n="fq.q1">Do I have to replace my launcher?</summary>
+            <p data-i18n="fq.a1">No, and that is the point. Most launchers don't manage modpacks — the vanilla launcher, Legacy Launcher, Shiginima and others just point at one <code>.minecraft</code>. Prism, PolyMC and MultiMC do, but via profiles. Elo works at the content layer: it points your existing <code>.minecraft</code> at different mod sets, so switching between a heavy modpack and a clean world is a relink, not a multi-GB copy. No launcher lock-in, no profile migration.</p>
+          </details>
+          <details class="qa">
+            <summary data-i18n="fq.q2">What happens to the mods folder I already have?</summary>
+            <p data-i18n="fq.a2">On first activation in safe mode, your real folders are moved to <code>~/.elo/backups/original</code> and replaced with links that Elo owns. The backup happens at most once and is never overwritten. <code>elo instances reset</code> puts everything back.</p>
+          </details>
+          <details class="qa">
+            <summary data-i18n="fq.q3">A file with that name already exists. Will it be overwritten?</summary>
+            <p data-i18n="fq.a3">No. If the existing file has exactly the expected name and SHA-512 hash, Elo reuses and records it. Otherwise the install stops with <code>collision</code>. Run <code>elo addons list &lt;instance&gt;</code> and decide explicitly.</p>
+          </details>
+          <details class="qa">
+            <summary data-i18n="fq.q4">Something looks wrong. Where do I start?</summary>
+            <p data-i18n="fq.a4">Run <code>elo status</code>. It reports missing, broken, divergent and externally managed links. Use <code>elo instances reset</code> only after reading that diagnosis.</p>
+          </details>
+          <details class="qa">
+            <summary data-i18n="fq.q5">Can I use it in scripts?</summary>
+            <p data-i18n="fq.a5">Yes. Commands are grouped and stable, <code>--dry-run</code> previews any change and <code>--yes</code> enables deliberate automation. Output is human-oriented; there is no JSON mode.</p>
+          </details>
+          <details class="qa">
+            <summary data-i18n="fq.q6">Does it need root?</summary>
+            <p data-i18n="fq.a6">No. The installer never uses <code>sudo</code> and never changes your system package manager. Update and uninstall work without privileges.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────── 07 install ────────────────────────── -->
+  <section class="sec sec--rule" id="install">
+    <div class="wrap sec__grid">
+      <aside class="sec__aside">
+        <p class="sec__num">07</p>
+        <p class="sec__label" data-i18n="sec.install">install</p>
+      </aside>
+
+      <div class="sec__body">
+        <pre class="ascii ascii--cta" aria-hidden="true" data-ascii-logo>           /$$          
+          | $$          
+  /$$$$$$ | $$  /$$$$$$ 
+ /$$__  $$| $$ /$$__  $$
+| $$$$$$$$| $$| $$  \ $$
+| $$_____/| $$| $$  | $$
+|  $$$$$$$| $$|  $$$$$$/
+ \_______/|__/ \______/ 
+                        </pre>
+        <h2 data-i18n="it.title">Point it at your folder and go</h2>
+
+        <div class="block block--wide">
+          <p class="block__label" data-i18n="hero.install">install</p>
+          <div class="block__row">
+            <code class="block__cmd" data-copy="curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash">curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash</code>
+            <button class="copy" type="button" data-copy data-i18n-aria-label="copy.install" aria-label="Copy install command">
+              <span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.done">copied</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="note" data-i18n="it.note">Then run <code>elo init --minecraft-path "$HOME/.minecraft"</code> followed by <code>elo</code>. On macOS use <code>"$HOME/Library/Application Support/minecraft"</code>.</p>
+
+        <p class="links">
+          <a href="https://github.com/3nderXP/elo/releases/latest" target="_blank" rel="noopener" data-i18n="it.l1">latest release ↗</a>
+          <a href="https://github.com/3nderXP/elo#readme" target="_blank" rel="noopener" data-i18n="it.l2">readme ↗</a>
+          <a href="https://github.com/3nderXP/elo/issues" target="_blank" rel="noopener" data-i18n="it.l3">issues ↗</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="grain" aria-hidden="true"></span>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p class="footer__line" data-i18n="ft.1">elo — minecraft content manager</p>
+    <p class="footer__line footer__line--muted"><span data-i18n="ft.2">GPL-3.0</span> · <a href="https://github.com/3nderXP" target="_blank" rel="noopener">3nderXP</a> · <span data-i18n="ft.3">static html, no build step, no trackers</span></p>
+    <p class="footer__line footer__line--muted">
+      <a href="https://github.com/3nderXP/elo/blob/main/specs/README.md" target="_blank" rel="noopener" data-i18n="ft.4">specifications</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://github.com/3nderXP/elo/blob/main/specs/cli-contract.md" target="_blank" rel="noopener" data-i18n="ft.5">cli contract</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://modrinth.com" target="_blank" rel="noopener">modrinth</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://github.com/charmbracelet/gum" target="_blank" rel="noopener">gum</a>
+    </p>
+  </div>
+</footer>
+
+<script src="assets/i18n/pt-BR.js" defer></script>
+<script src="assets/js/i18n.js" defer></script>
+<script src="assets/js/terminal.js" defer></script>
+<script src="assets/js/main.js" defer></script>
+</body>
+</html>

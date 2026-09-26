@@ -1,7 +1,6 @@
 # AI coding assistants and LLM tooling
 
 # Shared and local instruction files
-AGENTS.md
 AGENTS.local.md
 AGENTS.override.md
 CLAUDE.md

@@ -22,7 +22,10 @@
 - Business logic must not be added to `elo.sh`.
 - Python, Node.js, Go, and Rust are outside the Bash MVP.
 - Tests must never access real user data.
-- All tracked text must be English.
+- All tracked text must be English. The sole exception is a locale catalog
+  under `site/assets/i18n/`, which is data keyed by the English source string
+  rather than product copy. Authoritative product text stays English, and a
+  catalog is not allowed to drift: every key must exist in the English source.
 
 Before completion, run syntax checks, integration and interactive delegation
 tests, skill validation when applicable, and diff checks. Update specs for

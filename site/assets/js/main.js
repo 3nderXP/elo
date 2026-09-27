@@ -75,12 +75,48 @@
     $$("a", nav).forEach(function (link) {
       link.addEventListener("click", close);
     });
+    $$("[data-lang]", nav).forEach(function (button) {
+      button.addEventListener("click", close);
+    });
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") close();
     });
     document.addEventListener("click", function (event) {
       if (!nav.classList.contains("is-open")) return;
       if (!nav.contains(event.target) && !toggle.contains(event.target)) close();
+    });
+  }
+
+  function initLangMenu() {
+    var menus = $$("[data-lang-menu]");
+    if (!menus.length) return;
+
+    function closeAll(keep) {
+      menus.forEach(function (menu) {
+        if (menu !== keep) menu.removeAttribute("open");
+      });
+    }
+
+    document.addEventListener("elo:lang", function () {
+      closeAll(null);
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      var open = menus.filter(function (menu) {
+        return menu.hasAttribute("open");
+      });
+      if (!open.length) return;
+      closeAll(null);
+      var trigger = $("summary", open[0]);
+      if (trigger) trigger.focus();
+    });
+
+    document.addEventListener("click", function (event) {
+      var inside = menus.filter(function (menu) {
+        return menu.contains(event.target);
+      });
+      closeAll(inside[0] || null);
     });
   }
 
@@ -122,6 +158,9 @@
     var status = $("[data-release-status]");
     if (!badges.length && !status) return;
     if (!window.fetch) return;
+
+    var shipped = badges.length ? badges[0].textContent.trim() : "";
+
     fetch("https://api.github.com/repos/" + REPO + "/releases/latest", {
       headers: { Accept: "application/vnd.github+json" }
     })
@@ -131,20 +170,23 @@
       })
       .then(function (data) {
         var tag = (data && data.tag_name ? data.tag_name : "").trim();
-        if (!/^v?\d/.test(tag) || !status) return;
+        if (!/^v?\d/.test(tag)) return;
+        if (tag.charAt(0) !== "v") tag = "v" + tag.slice(1);
+        badges.forEach(function (badge) {
+          badge.textContent = tag;
+        });
+        if (!status || tag === shipped) return;
         status.textContent = "update available · " + tag;
         status.classList.add("is-shown");
       })
       .catch(function () {
-        if (!status) return;
-        var label = badges.length ? badges[0].textContent.trim() : "unknown";
-        status.textContent = "release check unavailable · " + label;
-        status.classList.add("is-shown", "is-off");
+        return;
       });
   }
 
   initCopy();
   initNav();
+  initLangMenu();
   initSpy();
   initVersion();
 })();

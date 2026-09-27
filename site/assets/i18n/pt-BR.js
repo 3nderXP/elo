@@ -2,6 +2,7 @@ window.ELO_I18N = window.ELO_I18N || {};
 
 window.ELO_I18N["pt-BR"] = {
   "meta.desc": "O Elo mantém cada setup do Minecraft na sua própria pasta e troca entre eles só religando. Seu launcher continua funcionando; o Elo assume mods, resource packs, shaders e configs.",
+  "meta.card": "Cada setup do Minecraft ganha sua própria pasta. Troque entre eles só religando, ao lado do launcher que você já usa.",
 
   "nav.menu": "menu",
   "nav.why": "por quê",

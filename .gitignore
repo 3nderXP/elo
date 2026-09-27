@@ -33,6 +33,10 @@ QWEN.md
 .roomodes
 .windsurfrules
 
+# Python bytecode from the site build helpers (scripts/inject-*.py)
+__pycache__/
+*.pyc
+
 # GitHub Copilot customizations (keep the rest of .github trackable)
 /.github/agents/
 /.github/copilot-instructions.md

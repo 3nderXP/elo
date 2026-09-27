@@ -6,10 +6,13 @@
 feature/* ─┐
 fix/* ─────┴─ squash merge ─> develop
                                   └─ release PR ─> main ─> tag ─> Release
+                                  └─ site-only PR ─> main   (no tag, no release)
 ```
 
 - `main` contains releasable versions, exists authoritatively on GitHub, and
   accepts release PRs through normal merge commits.
+- `main` may also carry site-only merges with no tag, as described under
+  "What counts as a release".
 - `develop` is the integration branch and accepts feature/fix PRs through
   squash merge.
 - `feature/*` and `fix/*` branch from `origin/develop`.
@@ -50,6 +53,37 @@ Use `vMAJOR.MINOR.PATCH`. PATCH fixes compatibility, MINOR adds compatible
 features, and MAJOR introduces incompatibility. Document breaking behavior
 explicitly during `0.x`.
 
+## What counts as a release
+
+A release versions the CLI, and the CLI is defined by `specs/cli-contract.md`:
+its commands, flags, output, exit codes and on-disk layout. The tag is the
+release. A merge is not.
+
+- A PR touching `elo.sh`, `lib/`, `install.sh`, `tests/`, or
+  `specs/cli-contract.md` changes the contract and therefore requires a SemVer
+  release with a tag, as usual.
+- A PR touching only `site/`, `assets/branding/`, `scripts/inject-*.py`,
+  `AGENTS.md`, or documentation and non-contract specs changes no part of the
+  installed program. Merge it to `main` with **no release and no tag**. Bumping
+  the version for it misleads every installer about what changed, because no
+  user of the CLI receives a feature or a fix.
+- The landing page is a separate published artifact with its own cadence. It
+  deploys on every merge and versions itself from the CLI's latest release, not
+  from its own commits.
+
+Because site-only commits reach `main` without a tag, `main` legitimately runs
+ahead of the highest tag. "What is released" is therefore the highest version
+tag:
+
+```bash
+git tag --list 'v*' --sort=-v:refname | head -1
+```
+
+Never use `git describe` for this. It resolves the nearest tag reachable from
+`HEAD`, not the highest version, so a branch that trails the newest tag reports
+an older release — the version shown to users and the version recorded in
+`site/index.html` must come from the tag list.
+
 ## Release flow
 
 1. Confirm `develop` is releasable.
@@ -64,6 +98,18 @@ explicitly during `0.x`.
 
 Do not create tags locally or tag commits before the release PR is merged.
 Published tags are immutable; corrections require a new version.
+
+## Release steps after tagging
+
+The website names the CLI release it documents, so it is one release behind by
+construction. After the tag exists, write that version into the page:
+
+```bash
+python3 scripts/inject-version.py
+```
+
+Commit the result as a site-only merge, with no new tag. Running the script
+before tagging publishes a version that does not exist yet.
 
 ## GitHub protection
 
@@ -89,6 +135,11 @@ bash -n install.sh elo.sh lib/*.sh tests/*.sh
 
 Validate modified skills, review changes since the previous tag, verify English
 documentation, and confirm the tag does not exist.
+
+Before tagging, confirm the release is a CLI release: if the diff against the
+previous tag is limited to `site/`, `assets/branding/`, `scripts/inject-*.py`,
+`AGENTS.md` and documentation, close the release draft and delete the tag
+instead of publishing a version the CLI did not earn.
 
 ## Reproducible installation
 

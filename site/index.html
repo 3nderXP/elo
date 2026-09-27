@@ -5,17 +5,58 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elo — Minecraft instance manager</title>
 <meta name="description" data-i18n-content="meta.desc" content="Elo keeps each Minecraft setup in its own directory and switches between them by relinking. Your launcher keeps working; Elo takes over the mods, resource packs, shaders and config.">
+<meta name="keywords" content="Minecraft, mod manager, instance manager, mods, resource packs, shaders, config, launcher, Fabric, Forge, NeoForge, Quilt">
+<meta name="author" content="3nderXP">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#18211B">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://3nderxp.github.io/elo/">
+
 <meta property="og:type" content="website">
 <meta property="og:title" content="Elo — Minecraft instance manager">
 <meta property="og:description" data-i18n-content="meta.desc" content="Give every Minecraft setup its own folder. Switch setups by relinking, next to the launcher you already use.">
 <meta property="og:image" content="assets/img/og.jpg">
+<meta property="og:image:alt" content="Elo — Minecraft instance manager terminal interface">
+<meta property="og:url" content="https://3nderxp.github.io/elo/">
+<meta property="og:site_name" content="Elo">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="pt_BR">
+
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Elo — Minecraft instance manager">
+<meta name="twitter:description" data-i18n-content="meta.desc" content="Give every Minecraft setup its own folder. Switch setups by relinking, next to the launcher you already use.">
+<meta name="twitter:image" content="assets/img/og.jpg">
+<meta name="twitter:image:alt" content="Elo — Minecraft instance manager terminal interface">
+
 <link rel="icon" href="assets/img/favicon.png" sizes="32x32">
 <link rel="icon" href="assets/img/icon.png" sizes="512x512">
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/css/style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Elo",
+  "applicationCategory": "GameUtility",
+  "operatingSystem": "Linux, macOS",
+  "description": "Minecraft instance manager that organizes mods, resource packs, shaders and config into separate instances. Works with any launcher.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+  "author": {
+    "@type": "Person",
+    "name": "3nderXP"
+  },
+  "url": "https://github.com/3nderXP/elo",
+  "downloadUrl": "https://github.com/3nderXP/elo/releases/latest",
+  "operatingSystem": "Linux, macOS",
+  "keywords": "Minecraft, mods, resource packs, shaders, instance manager, Fabric, Forge, NeoForge, Quilt"
+}
+</script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -71,7 +112,7 @@
 
         <h1 class="hero__title" data-i18n="hero.t1">Every setup gets<br>its own folder.</h1>
 
-        <p class="lede" data-i18n="hero.lede">The vanilla launcher and most legacy launchers don't manage modpacks at all — they just point at one <code>.minecraft</code>. Prism, PolyMC and MultiMC do, but they lock you into their profile system. Elo works differently: it points your existing <code>.minecraft</code> at a different set of mods, resource packs, shaders and config, so moving between a heavy modpack and a clean vanilla world is a relink instead of another multi-gigabyte copy. No new launcher, no new Java, no duplicated worlds — and no profile lock-in.</p>
+        <p class="lede" data-i18n="hero.lede">Most launchers don't manage modpacks — vanilla, Legacy Launcher, Shiginima just point at one <code>.minecraft</code>. Prism, PolyMC, MultiMC use profiles. Elo works at the content layer: points your <code>.minecraft</code> at different mod sets. Switching is a relink, not a multi-GB copy. No launcher lock-in.</p>
 
         <div class="block">
           <p class="block__label" data-i18n="hero.install">install</p>
@@ -167,12 +208,12 @@
 
       <div class="sec__body">
         <h2 data-i18n="why.title">A launcher manages the game. Elo manages what is inside the folder.</h2>
-        <p class="lede" data-i18n="why.lede">Both jobs matter and they do not overlap. Elo never installs Java, never picks a Minecraft version, and never asks you to move your worlds into a launcher profile. It works on the content your launcher already reads.</p>
+        <p class="lede" data-i18n="why.lede">Two different jobs. Elo never installs Java, picks versions, or manages launcher profiles. It works on the content your launcher already reads.</p>
 
         <dl class="defs">
           <div class="def">
             <dt data-i18n="why.d1.t">Works with your launcher</dt>
-            <dd data-i18n="why.d1.d">The vanilla launcher and most legacy launchers don't manage modpacks — Elo adds that without replacing your launcher. Prism, PolyMC and MultiMC manage modpacks via profiles; Elo works at the content layer instead, so you keep your launcher and your profiles, and just swap the folder contents. Your <code>.minecraft</code> stays exactly where it is, and only the folders inside it become links.</dd>
+            <dd data-i18n="why.d1.d">Most launchers don't manage modpacks — vanilla, Legacy Launcher, Shiginima just point at one folder. Prism, PolyMC, MultiMC use profiles. Elo works at the content layer, so you keep your launcher and just swap folder contents. Your <code>.minecraft</code> stays put; only folders inside become links.</dd>
           </div>
           <div class="def">
             <dt data-i18n="why.d2.t">Owns content, nothing else</dt>
@@ -208,8 +249,8 @@
       </aside>
 
       <div class="sec__body">
-        <h2 data-i18n="ex.title">Or drive it from a script</h2>
-        <p class="lede" data-i18n="ex.lede">The menu is not a separate product with logic of its own. Every entry is a real command, so anything you can click also fits in a cron job, a modpack script or a Makefile.</p>
+        <h2 data-i18n="ex.title">Or script it</h2>
+        <p class="lede" data-i18n="ex.lede">The menu isn't a separate product. Every entry is a real command, so anything you click also fits in a cron, modpack script, or Makefile.</p>
 
         <div class="session">
           <div class="term term--flat term--fit">
@@ -257,8 +298,8 @@
       </aside>
 
       <div class="sec__body">
-        <h2 data-i18n="in.title">Switching is a relink, not a copy</h2>
-        <p class="lede" data-i18n="in.lede">Elo keeps every setup under <code>~/.elo</code>. The active one is exposed inside your existing <code>.minecraft</code> through links that Elo created, and can prove it created.</p>
+        <h2 data-i18n="in.title">Relink, don't copy</h2>
+        <p class="lede" data-i18n="in.lede">Elo keeps every setup under <code>~/.elo</code>. The active one appears inside your <code>.minecraft</code> via links Elo created and owns.</p>
 
         <div class="diagram">
           <div>
@@ -313,8 +354,8 @@
       </aside>
 
       <div class="sec__body">
-        <h2 data-i18n="sa.title">Your Minecraft folder is your data, not Elo's</h2>
-        <p class="lede" data-i18n="sa.lede">Elo never destroys something it cannot put back. Every destructive path has a reversible counterpart, and the reversible one is what runs by default.</p>
+        <h2 data-i18n="sa.title">Your Minecraft folder is your data</h2>
+        <p class="lede" data-i18n="sa.lede">Elo never destroys what it can't put back. Every destructive path has a reversible counterpart, and the reversible one runs by default.</p>
 
         <ul class="guarantees">
           <li data-i18n="sa.g1">Your original folders are moved aside <b>once</b>, and never overwritten.</li>
@@ -362,7 +403,7 @@ saves            cool-mine          backed_up    ok</pre>
 
       <div class="sec__body">
         <h2 data-i18n="rq.title">Bring your own Minecraft folder</h2>
-        <p class="lede" data-i18n="rq.lede">Elo does not install Minecraft, Java, mod loaders or launcher profiles. Set up the version and loader you want the way you already do, then point Elo at the result.</p>
+        <p class="lede" data-i18n="rq.lede">Elo doesn't install Minecraft, Java, loaders, or launcher profiles. Set up the version and loader you want, then point Elo at it.</p>
 
         <dl class="specs">
           <div class="spec">
@@ -405,7 +446,7 @@ saves            cool-mine          backed_up    ok</pre>
       </aside>
 
       <div class="sec__body">
-        <h2 data-i18n="fq.title">Short answers</h2>
+        <h2 data-i18n="fq.title">Quick answers</h2>
 
         <div class="faq">
           <details class="qa">
@@ -455,7 +496,7 @@ saves            cool-mine          backed_up    ok</pre>
 |  $$$$$$$| $$|  $$$$$$/
  \_______/|__/ \______/ 
                         </pre>
-        <h2 data-i18n="it.title">Point it at your folder and go</h2>
+        <h2 data-i18n="it.title">Point at your folder and go</h2>
 
         <div class="block block--wide">
           <p class="block__label" data-i18n="hero.install">install</p>

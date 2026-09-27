@@ -35,6 +35,7 @@ git diff --check
 - Relative assets only (`assets/...`, no leading `/`)
 - `.nojekyll` already present
 - `scripts/inject-ascii.py` injects ASCII wordmark from `assets/branding/elo.asc` into `data-ascii-logo` slots
+- `scripts/inject-version.py` writes the highest version tag into every `data-repo-version` slot; run on release, never hand-edit the version
 
 ### Design system (site/)
 - Palette from `lib/interactive.sh`: `--grass`, `--wood`, `--sky`, `--text`, `--muted`, `--panel`, `--alert`
@@ -91,6 +92,7 @@ git diff --check
 
 ### Helper scripts
 - `scripts/inject-ascii.py` — injects ASCII wordmark
+- `scripts/inject-version.py` — injects the version into every `data-repo-version` slot
 - `scripts/` — only landing page build tools
 
 ## Rules for agents

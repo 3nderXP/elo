@@ -15,8 +15,11 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Elo — Minecraft instance manager">
 <meta property="og:description" data-i18n-content="meta.desc" content="Give every Minecraft setup its own folder. Switch setups by relinking, next to the launcher you already use.">
-<meta property="og:image" content="assets/img/og.jpg">
-<meta property="og:image:alt" content="Elo — Minecraft instance manager terminal interface">
+<meta property="og:image" content="assets/img/banner-tui.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta property="og:image:alt" content="Elo — Minecraft instance manager in the terminal">
 <meta property="og:url" content="https://3nderxp.github.io/elo/">
 <meta property="og:site_name" content="Elo">
 <meta property="og:locale" content="en_US">
@@ -25,8 +28,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Elo — Minecraft instance manager">
 <meta name="twitter:description" data-i18n-content="meta.desc" content="Give every Minecraft setup its own folder. Switch setups by relinking, next to the launcher you already use.">
-<meta name="twitter:image" content="assets/img/og.jpg">
-<meta name="twitter:image:alt" content="Elo — Minecraft instance manager terminal interface">
+<meta name="twitter:image" content="assets/img/banner-tui.png">
+<meta name="twitter:image:alt" content="Elo — Minecraft instance manager in the terminal">
 
 <link rel="icon" href="assets/img/favicon.png" sizes="32x32">
 <link rel="icon" href="assets/img/icon.png" sizes="512x512">
@@ -82,10 +85,36 @@
       <a href="#requirements"><span class="nav__num">05</span><span data-i18n="nav.requirements">requirements</span></a>
       <a href="#faq"><span class="nav__num">06</span><span data-i18n="nav.faq">faq</span></a>
       <a class="nav__ext" href="https://github.com/3nderXP/elo" target="_blank" rel="noopener">github ↗</a>
-      <span class="lang" role="group" data-i18n-aria-label="nav.lang_aria">
-        <a href="#" data-lang="en" class="is-active">en</a>
-        <a href="#" data-lang="pt-BR">pt-BR</a>
-      </span>
+      <details class="lang" data-lang-menu>
+        <summary class="lang__btn" data-i18n-aria-label="nav.lang_aria" aria-label="Language">
+          <svg class="lang__icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+            <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1"></circle>
+            <path d="M1.75 8h12.5M8 1.75c1.9 1.7 2.9 3.9 2.9 6.25S9.9 12.55 8 14.25C6.1 12.55 5.1 10.35 5.1 8S6.1 3.45 8 1.75Z" fill="none" stroke="currentColor" stroke-width="1"></path>
+          </svg>
+        </summary>
+        <ul class="lang__menu">
+          <li>
+            <button class="lang__item is-active" type="button" data-lang="en" lang="en">
+              <svg class="lang__flag" viewBox="0 0 16 12" width="16" height="12" aria-hidden="true" focusable="false">
+                <rect width="16" height="12" fill="#FFFFFF"></rect>
+                <path d="M0 .46h16M0 2.31h16M0 4.15h16M0 6h16M0 7.85h16M0 9.69h16M0 11.54h16" fill="none" stroke="#B22234" stroke-width=".92"></path>
+                <rect width="7" height="6.4" fill="#3C3B6E"></rect>
+              </svg>
+              <span>English</span>
+            </button>
+          </li>
+          <li>
+            <button class="lang__item" type="button" data-lang="pt-BR" lang="pt-BR">
+              <svg class="lang__flag" viewBox="0 0 16 12" width="16" height="12" aria-hidden="true" focusable="false">
+                <rect width="16" height="12" fill="#009C3B"></rect>
+                <path d="M8 1.4 14.4 6 8 10.6 1.6 6Z" fill="#FFDF00"></path>
+                <circle cx="8" cy="6" r="2.5" fill="#002776"></circle>
+              </svg>
+              <span>Português (Brasil)</span>
+            </button>
+          </li>
+        </ul>
+      </details>
     </nav>
   </div>
 </header>
@@ -95,6 +124,7 @@
   <!-- ────────────────────────────── hero ────────────────────────────── -->
   <section class="hero" id="top">
     <span class="grid-fade" aria-hidden="true"></span>
+    <span class="spot spot--hero" aria-hidden="true"></span>
     <div class="wrap hero__grid">
 
       <div class="hero__copy">
@@ -114,7 +144,7 @@
 
         <p class="lede" data-i18n="hero.lede">Most launchers don't manage modpacks — vanilla, Legacy Launcher, Shiginima just point at one <code>.minecraft</code>. Prism, PolyMC, MultiMC use profiles. Elo works at the content layer: points your <code>.minecraft</code> at different mod sets. Switching is a relink, not a multi-GB copy. No launcher lock-in.</p>
 
-        <div class="block">
+        <div class="block block--spot">
           <p class="block__label" data-i18n="hero.install">install</p>
           <div class="block__row">
             <code class="block__cmd" data-copy="curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash">curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash</code>
@@ -200,6 +230,7 @@
   <!-- ────────────────────────────── 01 why ───────────────────────────── -->
   <section class="sec" id="why">
     <span class="grid-fade grid-fade--left" aria-hidden="true"></span>
+    <span class="spot spot--why" aria-hidden="true"></span>
     <div class="wrap sec__grid">
       <aside class="sec__aside">
         <p class="sec__num">01</p>
@@ -259,26 +290,28 @@
               <span class="term__size">bash</span>
             </div>
             <div class="term__body">
-<pre class="out"><span class="prompt">$</span> elo init --minecraft-path <span class="arg">"$HOME/.minecraft"</span>
-<span class="prompt">$</span> elo instances create cool-mine <span class="flag">\</span>
-    <span class="flag">--version</span> 1.21.1 <span class="flag">--loader</span> fabric
-<span class="prompt">$</span> elo addons install cool-mine sodium
-<span class="prompt">$</span> elo instances activate cool-mine
-<span class="prompt">$</span> elo status</pre>
-              <ul class="alt__list">
-                <li>
-                  <code data-copy="elo instances create cool-mine --version 1.21.1 --loader fabric">elo instances create cool-mine --version 1.21.1 --loader fabric</code>
+              <div class="out out--rows">
+                <div class="out__row">
+                  <code class="out__cmd"><span class="prompt">$</span> elo init --minecraft-path <span class="arg">"$HOME/.minecraft"</span></code>
+                  <button class="copy copy--row" type="button" data-copy='elo init --minecraft-path "$HOME/.minecraft"' data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
+                </div>
+                <div class="out__row">
+                  <code class="out__cmd"><span class="prompt">$</span> elo instances create cool-mine <span class="flag">--version</span> 1.21.1 <span class="flag">--loader</span> fabric</code>
                   <button class="copy copy--row" type="button" data-copy="elo instances create cool-mine --version 1.21.1 --loader fabric" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
-                </li>
-                <li>
-                  <code data-copy="elo addons install cool-mine sodium">elo addons install cool-mine sodium</code>
+                </div>
+                <div class="out__row">
+                  <code class="out__cmd"><span class="prompt">$</span> elo addons install cool-mine sodium</code>
                   <button class="copy copy--row" type="button" data-copy="elo addons install cool-mine sodium" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
-                </li>
-                <li>
-                  <code data-copy="elo instances activate cool-mine">elo instances activate cool-mine</code>
+                </div>
+                <div class="out__row">
+                  <code class="out__cmd"><span class="prompt">$</span> elo instances activate cool-mine</code>
                   <button class="copy copy--row" type="button" data-copy="elo instances activate cool-mine" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
-                </li>
-              </ul>
+                </div>
+                <div class="out__row">
+                  <code class="out__cmd"><span class="prompt">$</span> elo status</code>
+                  <button class="copy copy--row" type="button" data-copy="elo status" data-i18n-aria-label="copy.cmd" aria-label="Copy command"><span class="copy__idle" data-i18n="copy.idle">copy</span><span class="copy__done" aria-hidden="true" data-i18n="copy.ok">ok</span></button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -347,6 +380,7 @@
   <!-- ─────────────────────────── 04 safety ─────────────────────────── -->
   <section class="sec sec--rule" id="safety">
     <span class="grid-fade grid-fade--edge" aria-hidden="true"></span>
+    <span class="spot spot--safety" aria-hidden="true"></span>
     <div class="wrap sec__grid">
       <aside class="sec__aside">
         <p class="sec__num">04</p>
@@ -358,17 +392,17 @@
         <p class="lede" data-i18n="sa.lede">Elo never destroys what it can't put back. Every destructive path has a reversible counterpart, and the reversible one runs by default.</p>
 
         <ul class="guarantees">
-          <li data-i18n="sa.g1">Your original folders are moved aside <b>once</b>, and never overwritten.</li>
+          <li class="guarantee--spot" data-i18n="sa.g1">Your original folders are moved aside <b>once</b>, and never overwritten.</li>
           <li data-i18n="sa.g2">Symlinks Elo does not own are reported, never removed.</li>
           <li data-i18n="sa.g3">Every managed addon is verified by SHA-512 before it is reused and before it is removed.</li>
-          <li data-i18n="sa.g4">A file that already exists with a different hash stops the install as a <b>collision</b>, instead of being overwritten.</li>
+          <li class="guarantee--spot" data-i18n="sa.g4">A file that already exists with a different hash stops the install as a <b>collision</b>, instead of being overwritten.</li>
           <li data-i18n="sa.g5">Removing a modified file requires you to name it explicitly with <code>--file</code>.</li>
-          <li data-i18n="sa.g6">Commands that change something ask first. <code>--yes</code> is the only way past that, and you have to type it.</li>
+          <li class="guarantee--spot" data-i18n="sa.g6">Commands that change something ask first. <code>--yes</code> is the only way past that, and you have to type it.</li>
           <li data-i18n="sa.g7"><code>uninstall --purge</code> refuses paths like <code>/</code> and <code>$HOME</code>.</li>
           <li data-i18n="sa.g8">Uninstalling keeps <code>~/.elo</code> by default, so your instances survive.</li>
         </ul>
 
-        <figure class="figure">
+        <figure class="figure figure--spot">
           <figcaption class="figure__label" data-i18n="sa.fig.label">elo status — what every managed folder is doing right now</figcaption>
           <div class="term term--flat term--fit">
             <div class="term__bar">
@@ -480,6 +514,7 @@ saves            cool-mine          backed_up    ok</pre>
 
   <!-- ──────────────────────────── 07 install ────────────────────────── -->
   <section class="sec sec--rule" id="install">
+    <span class="spot spot--install" aria-hidden="true"></span>
     <div class="wrap sec__grid">
       <aside class="sec__aside">
         <p class="sec__num">07</p>
@@ -498,7 +533,7 @@ saves            cool-mine          backed_up    ok</pre>
                         </pre>
         <h2 data-i18n="it.title">Point at your folder and go</h2>
 
-        <div class="block block--wide">
+        <div class="block block--wide block--spot">
           <p class="block__label" data-i18n="hero.install">install</p>
           <div class="block__row">
             <code class="block__cmd" data-copy="curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash">curl -fsSL https://github.com/3nderXP/elo/releases/latest/download/install.sh | bash</code>
@@ -524,7 +559,7 @@ saves            cool-mine          backed_up    ok</pre>
 
 <footer class="footer">
   <div class="wrap">
-    <p class="footer__line" data-i18n="ft.1">elo — minecraft content manager</p>
+    <p class="footer__line" data-i18n="ft.1">elo — minecraft instance manager</p>
     <p class="footer__line footer__line--muted"><span data-i18n="ft.2">GPL-3.0</span> · <a href="https://github.com/3nderXP" target="_blank" rel="noopener">3nderXP</a> · <span data-i18n="ft.3">static html, no build step, no trackers</span></p>
     <p class="footer__line footer__line--muted">
       <a href="https://github.com/3nderXP/elo/blob/main/specs/README.md" target="_blank" rel="noopener" data-i18n="ft.4">specifications</a>

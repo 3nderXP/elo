@@ -12,7 +12,7 @@ window.ELO_I18N["pt-BR"] = {
   "nav.faq": "faq",
   "nav.lang_aria": "Idioma",
 
-  "hero.kicker": "// gestão de conteúdo do minecraft",
+  "hero.kicker": "// gerenciador de instâncias do minecraft",
   "hero.t1": "Cada setup ganha<br>sua própria pasta.",
   "hero.lede": "A maioria dos launchers não gerencia modpacks — vanilla, Legacy Launcher, Shiginima só apontam pra um <code>.minecraft</code>. Prism, PolyMC, MultiMC usam perfis. O Elo trabalha na camada de conteúdo: aponta seu <code>.minecraft</code> pra conjuntos diferentes de mods. Trocar é religar, não copiar GBs. Sem lock-in de launcher.",
   "hero.install": "instalar",
@@ -104,7 +104,7 @@ window.ELO_I18N["pt-BR"] = {
   "it.l2": "readme ↗",
   "it.l3": "issues ↗",
 
-  "ft.1": "elo — gestão de conteúdo do minecraft",
+  "ft.1": "elo — gerenciador de instâncias do minecraft",
   "ft.2": "GPL-3.0",
   "ft.3": "html estático, sem build, sem trackers",
   "ft.4": "especificações",

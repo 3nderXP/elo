@@ -43,7 +43,7 @@ site/
     ├── css/style.css
     ├── i18n/pt-BR.js
     ├── js/{main,i18n,terminal}.js
-    └── img/{icon,favicon,apple-touch-icon}.png, og.jpg
+    └── img/{icon,favicon,apple-touch-icon,banner-tui}.png, og.jpg
 ```
 
 `assets/img/` holds optimized copies of `assets/branding/`, because files
@@ -59,7 +59,15 @@ convert site/assets/img/icon.png -resize 32x32 -strip -colors 64 \
   site/assets/img/favicon.png
 convert assets/branding/banner.png -resize 1200x -strip -quality 86 \
   site/assets/img/og.jpg
+cp assets/branding/banner-tui.png site/assets/img/banner-tui.png
 ```
+
+`og:image` / `twitter:image` point at `banner-tui.png` (1200x675, the TUI
+screenshot), not at `og.jpg`: the social card is the product's own terminal, and
+`og.jpg` stays as the wide release-banner crop. 16:9 is narrower than the 2:1 that
+summary cards crop to, so the top and bottom of the frame get trimmed on X and
+LinkedIn. If a full-bleed card is ever needed, cut a 1200x630 variant from
+`banner.png` and give it its own meta.
 
 The ASCII wordmark in `index.html` is the byte-exact content of
 `assets/branding/elo.asc`. Replace it mechanically; leading and trailing spaces
@@ -70,6 +78,27 @@ three copies:
 ```bash
 python3 scripts/inject-ascii.py
 ```
+
+## Version
+
+Two slots show the CLI version: the navbar chip and the `v…` chip in the hero
+terminal. They are one number, written by `scripts/inject-version.py`, which
+takes the highest version tag in the repo (`git tag --list 'v*' --sort=-v:refname`)
+and refuses anything that is not a version tag. Run it on every release instead
+of typing a version into the HTML:
+
+```bash
+python3 scripts/inject-version.py            # from the tags
+python3 scripts/inject-version.py v1.2.3     # explicit
+```
+
+At runtime `initVersion` asks GitHub for the latest release and rewrites every
+`[data-repo-version]` slot from that single response, so the navbar and the hero
+can never show two different numbers. The `update available · v…` notice is
+rendered only when the release is ahead of the version in the HTML, which is the
+build-time one; when a fetch fails the notice stays empty and the shipped value
+is what the visitor sees. There is no "check unavailable" line — a terminal
+block that invents output it did not produce is worse than silence.
 
 ## Design system
 
@@ -85,6 +114,11 @@ website and the terminal application read as the same product.
 | muted | `#9AA7A0` | `ELO_UI_MUTED` |
 | panel | `#18211B` | `ELO_UI_DARK` |
 | alert | `#E8B339` | `ELO_UI_ALERT` |
+
+Derived wood tones, used only by the spotlight utilities: `--wood-line`
+(`rgba(154, 114, 82, 0.42)`) for 1px frames, `--wood-hairline`
+(`rgba(154, 114, 82, 0.08)`) for the 1px contour rings. No new hue enters the
+palette; the spotlight is the wordmark color.
 
 The visual language is technical documentation, not a product page. Concretely:
 
@@ -106,11 +140,75 @@ single fine grain layer:
 | `.grid-fade--center` | `03 instances` | 64px grid, radial mask, sits behind the directory trees |
 | `.grid-fade--edge` | `04 safety` | horizontal hairlines only, masked to the left edge |
 | `.scanlines` | the hero terminal | 3px horizontal hairlines |
+| `.spot` | `hero`, `01 why`, `04 safety`, `07 install` | circular wood pool, 1px concentric rings over it |
+
+The last row is the spotlight, documented on its own below.
 
 Rules for adding more: strokes stay 1px, alpha stays at or below
 `--hairline` (`rgba(168, 199, 180, 0.05)`), and every pattern needs a mask so it
 fades before it reaches text. Large flat fields are deliberate; a grid that
 runs edge to edge behind copy is a bug.
+
+## Spotlight
+
+The one accent allowed to carry meaning: wood, because the wordmark is wood. It
+marks the handful of places worth reading twice. It is also the single
+documented exception to "no glows, no colored gradients" above — one radial
+gradient per highlighted area, wood only, always masked, never free-floating.
+
+A **pool** is `.spot`, an absolutely positioned span inside a `.hero` or `.sec`,
+placed before the `.wrap` so copy stacks above it:
+
+```html
+<span class="spot spot--why" aria-hidden="true"></span>
+```
+
+It paints a **circular** wood gradient (`0.18` at the source, `0.09` at 24%,
+`0.03` at 42%, gone by 55%) with 1px concentric rings from a `::after` on top, so
+it reads as light with structure rather than a blur. Move the source with
+`--spot-x` and `--spot-y`; `--spot-gap` sets the ring spacing.
+
+Two things to keep in mind when sizing it:
+
+- **Write `circle at <position>`, never `circle <percentage>`.** Firefox drops
+  the whole declaration for a percentage radius on `circle` — no pool at all,
+  no error in the console. With no size keyword the circle resolves to
+  `farthest-side`, so the stops do the sizing: keep `transparent` around 55% or
+  the pool covers the entire section instead of landing on one spot.
+- **The peak alpha is a contrast budget, not taste.** `0.18` over the hero copy
+  puts the brightest background pixel at `rgb(56, 52, 41)`, which leaves
+  `--muted` at 5.0:1 and `--text` at 11.1:1. Push it toward `0.3` and the body
+  copy starts failing.
+
+A **frame** is a modifier on an element that already has a border:
+`.block--spot` (both install blocks) and `.figure--spot` (the `elo status`
+table), which recolor that border to wood. `.guarantee--spot` does the same for
+the guarantee rows in `04 safety`, plus their `+` marker and the leading `<b>`.
+
+The topics of `01 why` carry no modifier at all. A row is not highlighted by
+recoloring its separator or its `▸`: all six keep `--line-soft` and the grass
+marker, because a row with a different border color reads as a different kind of
+row, and a mixed set of marker colors reads as a rendering bug. `.sec__num` is
+wood everywhere, so every gutter carries the accent once.
+
+Rules that keep it legal:
+
+- Wood only, and always one of the two derived tokens above. No second hue,
+  no rainbow pool.
+- Always masked. `.spot` masks radially around its own source, so the gradient
+  dies well inside the section instead of tinting the whole band.
+- One pool per section, and never in a gutter. A glow behind the section number
+  was tried and removed: seven of them read as noise and pulled the eye to the
+  numbering instead of the content.
+- Decoration only. No spotlight text, no labels, no new copy — a spotlight that
+  needs a word explaining it is a heading, and headings already carry the
+  section number and label in the gutter.
+- Sibling of the copy in the DOM and of the copy in the paint order. It never
+  becomes a container, so a pool can be added to a section without touching its
+  layout, and the page renders identically with CSS disabled.
+- Check the render, don't eyeball the CSS: screenshot the page before and after
+  and diff the pixel rows that hold text. The text profile must be unchanged, or
+  a pool moved something.
 
 ## Accuracy rules
 
@@ -229,8 +327,8 @@ framebuffer and does not model wrapping.
 - The authoritative command reference is `specs/cli-contract.md` and
   `elo help`. The site deliberately shows only a few commands, since a full
   table belongs in the README.
-- The `v0.6.1` strings are static; the header also reports the latest release
-  through the GitHub API at runtime and degrades silently.
+- The version strings are written by `scripts/inject-version.py` and refreshed
+  at runtime from the GitHub API; see "Version" above.
 - `og:image` is a relative path. Replace it with an absolute URL if a specific
   canonical domain is chosen.
 - All tracked text is English, per `specs/development-rules.md`. The one

@@ -4,20 +4,20 @@ Static project website for [Elo](https://github.com/3nderXP/elo). Plain HTML,
 CSS, and vanilla JavaScript — no build step, no bundler, no external runtime
 dependency, no analytics.
 
-## Publish with GitHub Pages
+## Publish with Netlify
 
-This folder is designed to be the published root:
+This folder is the published root. The production site is
+`https://elo-cli.netlify.app/`, with `site/` configured as the publish
+directory in the Netlify UI; the repository holds no deploy config, so there is
+no `netlify.toml` to keep in sync.
 
-1. Push the folder to the repository.
-2. Open **Settings → Pages**.
-3. Under **Build and deployment**, set **Source** to **Deploy from a branch**.
-4. Select the publishing branch and use `/ (root)` as the folder.
-5. Save. The site is served from `https://3nderxp.github.io/elo/`.
+Push a merged commit to `develop` and Netlify publishes it. Pull requests get
+their own Deploy Preview URL, which is not the canonical one.
 
-`.nojekyll` is already present, so Jekyll will not strip any asset.
-
-If the repository is a fork, the published URL follows the fork's owner and
-name, for example `https://<user>.github.io/elo/`.
+`canonical`, `og:url` and the social image URLs are absolute and pinned to the
+production host. A custom domain means changing the host in six places in
+`index.html` (canonical, `og:image`, `og:image:secure_url`, `og:url`,
+`twitter:image` and the JSON-LD `image`).
 
 ## Local preview
 
@@ -43,12 +43,12 @@ site/
     ├── css/style.css
     ├── i18n/pt-BR.js
     ├── js/{main,i18n,terminal}.js
-    └── img/{icon,favicon,apple-touch-icon,banner-tui}.png, og.jpg
+    └── img/{icon,favicon,apple-touch-icon,banner-tui}.png
 ```
 
 `assets/img/` holds optimized copies of `assets/branding/`, because files
-outside the published root are not served by GitHub Pages. Regenerate them after
-a brand change:
+outside the published root are not served by Netlify. Regenerate them after a
+brand change:
 
 ```bash
 convert assets/branding/shortcut-icon.png -resize 512x512 -strip -colors 128 \
@@ -57,17 +57,30 @@ convert site/assets/img/icon.png -resize 180x180 -strip -colors 128 \
   site/assets/img/apple-touch-icon.png
 convert site/assets/img/icon.png -resize 32x32 -strip -colors 64 \
   site/assets/img/favicon.png
-convert assets/branding/banner.png -resize 1200x -strip -quality 86 \
-  site/assets/img/og.jpg
-cp assets/branding/banner-tui.png site/assets/img/banner-tui.png
 ```
 
-`og:image` / `twitter:image` point at `banner-tui.png` (1200x675, the TUI
-screenshot), not at `og.jpg`: the social card is the product's own terminal, and
-`og.jpg` stays as the wide release-banner crop. 16:9 is narrower than the 2:1 that
-summary cards crop to, so the top and bottom of the frame get trimmed on X and
-LinkedIn. If a full-bleed card is ever needed, cut a 1200x630 variant from
-`banner.png` and give it its own meta.
+`banner-tui.png` has a single copy, in `site/assets/img/`: it is only consumed
+by the social meta tags, so it is website artwork and nothing else needs it. The
+release tarball ships `elo.asc` and `shortcut-icon.png` from
+`assets/branding/` and nothing else from that folder.
+
+`og:image` / `twitter:image` both point at `banner-tui.png` (1200x675, the TUI
+screenshot): the social card is the product's own terminal, not the marketing
+banner. 16:9 is narrower than the 2:1 that summary cards crop to, so the top and
+bottom of the frame get trimmed on X and LinkedIn. If a full-bleed card is ever
+needed, cut a 1200x630 variant of the same screenshot and give it its own meta;
+`assets/branding/banner.png` is the release-post hero and is not published.
+
+Image URLs in the social tags are **absolute** and hardcoded to
+`https://elo-cli.netlify.app/`, matching `<link rel="canonical">` and
+`og:url`. Crawlers resolve relative paths inconsistently, so a relative
+`og:image` is the most common reason a preview renders without an image. See
+"Publish with Netlify" above for the full list of places the host appears.
+
+`twitter:site` and `twitter:creator` both carry `@3nderXP`, the account that
+maintains the project. They are the only Twitter-specific tags besides the card
+type, the text and the image; keep the handle in sync with the account and do not
+invent a handle for a platform the project does not use.
 
 The ASCII wordmark in `index.html` is the byte-exact content of
 `assets/branding/elo.asc`. Replace it mechanically; leading and trailing spaces
@@ -329,8 +342,8 @@ framebuffer and does not model wrapping.
   table belongs in the README.
 - The version strings are written by `scripts/inject-version.py` and refreshed
   at runtime from the GitHub API; see "Version" above.
-- `og:image` is a relative path. Replace it with an absolute URL if a specific
-  canonical domain is chosen.
+- Social image URLs are absolute and pinned to the production host. See "Publish
+  with Netlify" above for the six places a custom domain would change.
 - All tracked text is English, per `specs/development-rules.md`. The one
   documented exception is `assets/i18n/pt-BR.js`: it is a locale catalog, not
   product copy, and it exists so the site and a future multilingual CLI share

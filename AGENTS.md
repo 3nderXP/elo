@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains **Elo**, a Minecraft instance manager in Bash. The static landing page lives in `site/` and is published via GitHub Pages.
+This repository contains **Elo**, a Minecraft instance manager in Bash. The static landing page lives in `site/` and is published via Netlify from that directory.
 
 ## How to work in this repo
 
@@ -31,7 +31,7 @@ git diff --check
 ```
 
 ### Landing page publishing
-- `site/` folder is the GitHub Pages root
+- `site/` folder is the Netlify publish directory (production: `https://elo-cli.netlify.app/`)
 - Relative assets only (`assets/...`, no leading `/`)
 - `.nojekyll` already present
 - `scripts/inject-ascii.py` injects ASCII wordmark from `assets/branding/elo.asc` into `data-ascii-logo` slots
